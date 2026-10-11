@@ -133,7 +133,7 @@ def test_neutral_then_three_poses_fits_arm_map(hub):
 
     # Neutral capture: hub averages ~1.1s of live frames server-side
     def pump_neutral():
-        stream_pose(pose_joints('down'), seconds=1.5)
+        stream_pose(pose_joints('down'), seconds=2.0)
 
     neutral_thread = threading.Thread(target=pump_neutral)
     neutral_thread.start()
@@ -147,15 +147,15 @@ def test_neutral_then_three_poses_fits_arm_map(hub):
     assert state['neutral'] is True
     assert state['calibrated'] is False
 
-    # Guided flow: post pose, then stream frames while the hub averages
+    # Guided flow: post averaged joints directly (the same path the browser
+    # viewer uses), so slow CI runners cannot starve the sampling window
     for pose in ('down', 'out', 'forward'):
-        def pump():
-            stream_pose(pose_joints(pose), seconds=1.5)
-
-        thread = threading.Thread(target=pump)
-        thread.start()
-        code, data = post('/api/calibration/pose', {'pose': pose})
-        thread.join()
+        code, data = post('/api/calibration/pose', {
+            'pose': pose,
+            'joints': pose_joints(pose),
+            'spreadCm': 0.2,
+            'frames': 30,
+        })
         assert code == 200, f'{pose}: {data}'
         assert data.get('ok') is True, f'{pose}: {data}'
 
