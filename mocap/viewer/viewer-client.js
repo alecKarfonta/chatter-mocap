@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
-import { MocapRetargeter } from '/mocap/retargeter.js?v=fit1';
-import { mergeProfile } from '/mocap/mapping-profile.js';
-import { BrowserMocapSource, listCameras } from '/mocap/source-browser.js?v=fit3';
-import { normalizeFrame } from '/mocap/protocol.js?v=fit1';
+import { MocapRetargeter } from '../mocap/retargeter.js?v=fit1';
+import { mergeProfile } from '../mocap/mapping-profile.js';
+import { BrowserMocapSource, listCameras } from '../mocap/source-browser.js?v=fit3';
+import { normalizeFrame } from '../mocap/protocol.js?v=fit1';
 
 // this [2026-10-11] | FIX | viewer-client.embed | ?embed=1: the native app hosts the camera; the in-page camera pane is never rendered (this was the "duplicated camera view")
 const embedded = new URLSearchParams(location.search).get('embed') === '1';
@@ -230,7 +230,7 @@ const ui = {
 
 async function saveProfile() {
     if (!ui.profile || !ui.vrmName) return;
-    await fetch(`/api/profiles/${encodeURIComponent(ui.vrmName)}`, {
+    await fetch(`api/profiles/${encodeURIComponent(ui.vrmName)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ui.profile),
@@ -435,7 +435,7 @@ async function loadVrm(url, rendererScene) {
 }
 
 async function refreshLibrary() {
-    const data = await fetch('/api/vrms').then((r) => r.json());
+    const data = await fetch('api/vrms').then((r) => r.json());
     const host = document.getElementById('vrm-list');
     host.innerHTML = '';
     for (const file of data.files || []) {
@@ -443,7 +443,7 @@ async function refreshLibrary() {
         card.className = 'card' + (file.selected ? ' on' : '');
         card.textContent = file.name;
         card.addEventListener('click', async () => {
-            await fetch('/api/vrms/select', {
+            await fetch('api/vrms/select', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: file.name }),
@@ -823,7 +823,7 @@ async function saveArmChoice() {
     const map = ARM_MAPS.find((item) => item.id === lab?.mapId) || ARM_MAPS[0];
     const note = document.getElementById('map-note')?.value?.trim() || '';
     const state = document.getElementById('map-save-state');
-    const loaded = await fetch('/api/calibration');
+    const loaded = await fetch('api/calibration');
     if (!loaded.ok) throw new Error('Could not read the current calibration');
     const current = await loaded.json();
     const armMap = current.armMap && typeof current.armMap === 'object' ? current.armMap : {};
@@ -839,7 +839,7 @@ async function saveArmChoice() {
     };
     armMap.arms = arms;
     armMap.chosen = Object.assign({}, armMap.chosen, { left: map.id });
-    const saved = await fetch('/api/calibration', {
+    const saved = await fetch('api/calibration', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -864,7 +864,7 @@ async function saveArmChoice() {
 }
 
 async function main() {
-    const config = await fetch('/api/config').then((r) => r.json());
+    const config = await fetch('api/config').then((r) => r.json());
     ui.vrmName = config.vrmName || 'model';
     setStatus(`Loading ${ui.vrmName || 'sample'}…`);
     const canvas = document.getElementById('stage');
@@ -893,8 +893,9 @@ async function main() {
     scene.add(key);
     const ghost = createGhost(scene);
 
-    const vrm = await loadVrm(`${config.vrm || '/model.vrm'}?t=${Date.now()}`, scene);
-    const saved = await fetch(`/api/profiles/${encodeURIComponent(ui.vrmName)}`).then((r) => r.json()).catch(() => ({}));
+    const vrmPath = (config.vrm || 'model.vrm').replace(/^\//, '');
+        const vrm = await loadVrm(`${new URL(vrmPath, location.href).pathname}?t=${Date.now()}`, scene);
+    const saved = await fetch(`api/profiles/${encodeURIComponent(ui.vrmName)}`).then((r) => r.json()).catch(() => ({}));
     ui.profile = mergeProfile(undefined, saved.v ? saved : null);
     ui.retargeter = new MocapRetargeter(vrm, ui.profile);
     if (config.calibration?.rest) ui.retargeter.setCalibration(config.calibration);
@@ -904,7 +905,8 @@ async function main() {
     document.getElementById('smooth-legs').value = ui.profile.smoothing?.legs ?? 0.45;
     loadTrimControls();
 
-    const socket = window.io({ transports: ['websocket', 'polling'] });
+    // this [2026-10-11] | INFO | viewer-client.socketPath | Relative so the hub works under a reverse-proxy prefix (mlapi.us/mocap/)
+    const socket = window.io({ path: new URL('socket.io', location.href).pathname, transports: ['websocket', 'polling'] });
     socket.on('mocap-frame', (frame) => {
         if (ui.source && frame?.source === 'browser') return;
         ui.lastFrame = frame;
@@ -919,8 +921,8 @@ async function main() {
     });
     socket.on('mocap-vrm-changed', async (data) => {
         ui.vrmName = data.vrmName;
-        const next = await loadVrm(`/model.vrm?t=${Date.now()}`, scene);
-        const profile = await fetch(`/api/profiles/${encodeURIComponent(ui.vrmName)}`).then((r) => r.json());
+        const next = await loadVrm(`${new URL('model.vrm', location.href).pathname}?t=${Date.now()}`, scene);
+        const profile = await fetch(`api/profiles/${encodeURIComponent(ui.vrmName)}`).then((r) => r.json());
         ui.profile = mergeProfile(undefined, profile.bones ? profile : null);
         ui.retargeter = new MocapRetargeter(next, ui.profile);
         refreshLibrary();
@@ -980,7 +982,7 @@ async function main() {
         if (!file) return;
         const body = new FormData();
         body.append('file', file);
-        await fetch('/api/vrms', { method: 'POST', body });
+        await fetch('api/vrms', { method: 'POST', body });
         refreshLibrary();
     });
     const POSE_LABEL = {
@@ -1105,7 +1107,7 @@ async function main() {
     async function capturePose(pose) {
         const state = document.getElementById('calib-state');
         if (pose === 'clear') {
-            const data = await fetch('/api/calibration/pose', {
+            const data = await fetch('api/calibration/pose', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ pose: 'clear' }),
@@ -1144,7 +1146,7 @@ async function main() {
                 state.textContent = 'One or both arms were not visible. Step into frame and try again.';
                 return;
             }
-            const response = await fetch('/api/calibration/pose', {
+            const response = await fetch('api/calibration/pose', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1171,7 +1173,7 @@ async function main() {
     document.getElementById('pose-out').addEventListener('click', () => capturePose('out'));
     document.getElementById('pose-forward').addEventListener('click', () => capturePose('forward'));
     document.getElementById('pose-clear').addEventListener('click', () => capturePose('clear'));
-    fetch('/api/calibration').then((response) => response.json()).then((data) => {
+    fetch('api/calibration').then((response) => response.json()).then((data) => {
         renderCompare(data.compare || []);
         if (data.armMap) ui.retargeter?.setCalibration(data);
     }).catch(() => {});
@@ -1182,7 +1184,7 @@ async function main() {
         ui.profile.expressions[from] = { target, gain: 1, clamp: 1, mouth: /mouth|jaw|aa|ee|oh|ou/.test(target) };
         saveProfile();
     });
-    document.getElementById('rec-start').addEventListener('click', () => fetch('/api/record/start', { method: 'POST' }));
+    document.getElementById('rec-start').addEventListener('click', () => fetch('api/record/start', { method: 'POST' }));
     document.getElementById('roundtrip-run').addEventListener('click', () => {
         runRoundTrip(renderer, scene, camera, controls, ghost, fit).catch((error) => {
             const out = document.getElementById('roundtrip-out');
@@ -1192,15 +1194,15 @@ async function main() {
         });
     });
     document.getElementById('rec-stop').addEventListener('click', async () => {
-        await fetch('/api/record/stop', { method: 'POST' });
-        const data = await fetch('/api/recordings').then((r) => r.json());
+        await fetch('api/record/stop', { method: 'POST' });
+        const data = await fetch('api/recordings').then((r) => r.json());
         const host = document.getElementById('recordings');
         host.innerHTML = '';
         for (const file of data.files || []) {
             const button = document.createElement('button');
             button.type = 'button';
             button.textContent = `Play ${file.name}`;
-            button.addEventListener('click', () => fetch('/api/recordings/play', {
+            button.addEventListener('click', () => fetch('api/recordings/play', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: file.name }),
