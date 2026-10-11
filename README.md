@@ -18,6 +18,10 @@ Browser-based motion capture for VRM avatars. Point your webcam at yourself, loa
 
 ## Quick start
 
+**Easiest:** grab a prebuilt binary from [Releases](https://github.com/alecKarfonta/chatter-mocap/releases) — double-click (Windows `.exe`, macOS `.app` in the zip) or run the Linux binary. Your default browser opens the viewer; allow the camera and you're tracking.
+
+**From source:**
+
 ```bash
 git clone https://github.com/alecKarfonta/chatter-mocap.git
 cd chatter-mocap
@@ -75,6 +79,18 @@ Frames flow over Socket.IO (`mocap-frame`) as `MocapFrame v1` JSON — see [`moc
 pip install -r requirements.txt pytest
 pytest test/ -q
 ```
+
+## Building binaries
+
+Releases are built automatically: push a `v*` tag and GitHub Actions produces Windows, macOS, and Linux binaries attached to the Release. To build locally:
+
+```bash
+pip install -r requirements.txt pyinstaller pillow
+python scripts/make_icon.py
+pyinstaller chatter-mocap.spec
+```
+
+The binary hosts the hub on port 8765 (auto-increments if busy), opens your default browser, and keeps VRM models + calibration under your user support dir (not inside the app bundle).
 
 ## License
 

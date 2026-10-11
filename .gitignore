@@ -10,6 +10,11 @@ venv/
 support/
 *.vrm
 
+# Packaging
+build/
+dist/
+*.spec.bak
+
 # Node (viewer tests)
 node_modules/
 
