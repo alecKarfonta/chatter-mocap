@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mocap-frame.v1",
+  "title": "MocapFrame v1",
+  "description": "Canonical subject space: right-handed meters, origin at the hips, +Y up, +X toward the subject's left, +Z toward the camera. Mirroring is applied by the source.",
+  "type": "object",
+  "required": ["v", "t", "source"],
+  "additionalProperties": true,
+  "properties": {
+    "v": { "const": 1 },
+    "t": { "type": "number", "description": "Unix milliseconds" },
+    "source": { "type": "string" },
+    "body": {
+      "type": "object",
+      "properties": {
+        "metric": { "type": "boolean" },
+        "joints": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 4,
+            "items": { "type": "number" }
+          }
+        }
+      }
+    },
+    "hands": {
+      "type": "object",
+      "properties": {
+        "left": { "$ref": "#/$defs/hand" },
+        "right": { "$ref": "#/$defs/hand" }
+      }
+    },
+    "face": {
+      "type": "object",
+      "properties": {
+        "blendshapes": { "type": "object", "additionalProperties": { "type": "number" } },
+        "headRotation": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "type": "number" },
+          "description": "Quaternion xyzw, identity faces the camera"
+        },
+        "gaze": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          }
+        }
+      }
+    },
+    "quality": { "type": "object", "additionalProperties": { "type": "number" } }
+  },
+  "$defs": {
+    "hand": {
+      "type": "object",
+      "required": ["landmarks"],
+      "properties": {
+        "score": { "type": "number" },
+        "landmarks": {
+          "type": "array",
+          "minItems": 21,
+          "maxItems": 21,
+          "items": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": { "type": "number" }
+          }
+        }
+      }
+    }
+  }
+}

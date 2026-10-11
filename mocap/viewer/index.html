@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chatter Mocap</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.4.4/lib/three-vrm.module.min.js"
+        }
+    }
+    </script>
+    <style>
+        /* this [2026-10-11] | INFO | index.material | Material 3 dark scheme, green primary; tokens drive every component */
+        :root {
+            color-scheme: dark;
+            --primary: #6dd58c;
+            --on-primary: #00391d;
+            --primary-container: #255c39;
+            --on-primary-container: #c6f0cf;
+            --secondary-container: #3a4650;
+            --on-secondary-container: #d4e3f0;
+            --tertiary: #7ccfde;
+            --surface: #15191f;
+            --surface-1: #1a1f26;
+            --surface-2: #1f242c;
+            --surface-3: #252b34;
+            --on-surface: #e3e6ea;
+            --on-surface-variant: #b9c2cc;
+            --outline: #53616e;
+            --outline-variant: #2c3641;
+            --error: #ffb4ab;
+            --warn: #ffcc80;
+            --good: #6dd58c;
+            --chroma-green: #00b140;
+            --radius-s: 10px;
+            --radius-m: 14px;
+            --radius-l: 20px;
+            --elev-1: 0 1px 3px rgba(0, 0, 0, 0.35);
+            --elev-2: 0 4px 14px rgba(0, 0, 0, 0.45);
+            --elev-3: 0 10px 30px rgba(0, 0, 0, 0.55);
+            --font: -apple-system, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; height: 100%; background: var(--surface); color: var(--on-surface); font: 14px/1.45 var(--font); }
+        body { display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
+
+        /* ============ Top app bar ============ */
+        header.top-bar {
+            display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+            background: var(--surface-1); border-bottom: 1px solid var(--outline-variant);
+        }
+        .brand { display: flex; align-items: baseline; gap: 8px; margin-right: 4px; }
+        .brand b { font-size: 15.5px; font-weight: 600; letter-spacing: 0.2px; }
+        .brand span { font-size: 11.5px; color: var(--on-surface-variant); }
+        #status {
+            flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
+            color: var(--on-surface-variant); font-size: 12.5px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        #status::before {
+            content: ""; width: 8px; height: 8px; border-radius: 50%;
+            background: var(--good); box-shadow: 0 0 8px var(--good); flex: none;
+            animation: pulse 2.4s ease-in-out infinite;
+        }
+        @keyframes pulse { 50% { opacity: 0.45; } }
+        .top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+        /* this [2026-10-11] | INFO | index.controls | Filled selects + switch live in the bar; labels sit above for clarity */
+        .field { display: flex; flex-direction: column; gap: 2px; }
+        .field > span { font-size: 10.5px; color: var(--on-surface-variant); letter-spacing: 0.4px; text-transform: uppercase; padding-left: 10px; }
+        select {
+            appearance: none; background: var(--surface-3); color: var(--on-surface);
+            border: 1px solid var(--outline-variant); border-radius: var(--radius-s);
+            padding: 6px 26px 6px 10px; font: 12.5px var(--font); cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23b9c2cc' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 9px center;
+        }
+        select:hover { border-color: var(--outline); }
+        select:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+        /* M3 switch */
+        .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+        .switch input { appearance: none; position: relative; width: 44px; height: 26px; border-radius: 999px;
+            background: var(--surface-3); border: 2px solid var(--outline); transition: background .18s, border-color .18s; margin: 0; cursor: pointer; }
+        .switch input::after { content: ""; position: absolute; top: 50%; left: 4px; width: 14px; height: 14px; border-radius: 50%;
+            background: var(--on-surface-variant); transform: translateY(-50%); transition: left .18s, width .18s, height .18s, background .18s; }
+        .switch input:checked { background: var(--primary); border-color: var(--primary); }
+        .switch input:checked::after { left: 22px; width: 18px; height: 18px; background: var(--on-primary); }
+        .switch span { font-size: 12.5px; color: var(--on-surface-variant); }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+            background: var(--surface-3); color: var(--on-surface); border: 1px solid var(--outline-variant);
+            border-radius: var(--radius-s); padding: 7px 14px; font: 500 12.5px var(--font); cursor: pointer;
+            transition: background .15s, border-color .15s, transform .1s;
+        }
+        .btn:hover { background: var(--surface-2); border-color: var(--outline); }
+        .btn:active { transform: scale(0.97); }
+        .btn:disabled { opacity: 0.4; pointer-events: none; }
+        .btn.filled { background: var(--primary); color: var(--on-primary); border-color: transparent; }
+        .btn.filled:hover { filter: brightness(1.08); background: var(--primary); }
+        .btn.tonal { background: var(--secondary-container); color: var(--on-secondary-container); border-color: transparent; }
+        .btn.tonal:hover { filter: brightness(1.1); background: var(--secondary-container); }
+        .btn.danger { color: var(--error); }
+        .btn.block { width: 100%; }
+        .btn svg { flex: none; }
+
+        .icon-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 36px; height: 36px; border-radius: 50%; border: none; cursor: pointer;
+            background: transparent; color: var(--on-surface-variant); transition: background .15s, color .15s;
+        }
+        .icon-btn:hover { background: rgba(109, 213, 140, 0.12); color: var(--primary); }
+        .icon-btn.on { background: var(--primary-container); color: var(--on-primary-container); }
+        .icon-btn:active { transform: scale(0.92); }
+
+        /* ============ Main split ============ */
+        main { display: grid; grid-template-columns: minmax(0, 1fr) 372px; min-height: 0; }
+        body.drawer-hidden main { grid-template-columns: minmax(0, 1fr) 0; }
+        body.drawer-hidden .side { display: none; }
+
+        #stage-wrap { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; min-width: 0; }
+        .view { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+        .view + .view { border-left: 1px solid var(--outline-variant); }
+        .pane-head {
+            display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+            background: var(--surface-1); border-bottom: 1px solid var(--outline-variant);
+        }
+        .pane-head h2 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.7px; text-transform: uppercase; color: var(--on-surface-variant); flex: 1; }
+        .pane-head .btn { padding: 4px 10px; font-size: 11.5px; border-radius: 999px; }
+
+        #preview { position: relative; flex: 1; min-height: 160px; background: #0a0d12; }
+        #preview video, #preview canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+        #preview video { z-index: 0; }
+        #preview canvas { z-index: 1; }
+
+        #hold-overlay {
+            position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 4px;
+            background: rgba(8, 10, 14, 0.55); backdrop-filter: blur(2px); text-align: center;
+        }
+        #hold-overlay[hidden] { display: none; }
+        #hold-count { font-size: 84px; font-weight: 700; line-height: 0.9; color: #fff; text-shadow: 0 4px 30px rgba(109, 213, 140, 0.5); }
+        #hold-label { font-size: 16px; max-width: 320px; color: var(--on-surface); }
+
+        /* this [2026-10-11] | INFO | index.stage | Backgrounds: gradient studio, checker transparency, or solid chroma via three.js */
+        #stage-box { position: relative; flex: 1; min-height: 160px; display: flex; }
+        #stage-box.bg-studio { background: radial-gradient(ellipse 90% 75% at 50% 30%, #232b36 0%, #14181f 62%, #0c0f14 100%); }
+        #stage-box.bg-transparent {
+            background-image:
+                linear-gradient(45deg, #20262e 25%, transparent 25%),
+                linear-gradient(-45deg, #20262e 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #20262e 75%),
+                linear-gradient(-45deg, transparent 75%, #20262e 75%);
+            background-size: 22px 22px; background-position: 0 0, 0 11px, 11px -11px, -11px 0;
+            background-color: #171b21;
+        }
+        #stage { flex: 1; width: 100%; min-height: 0; display: block; }
+        #stage-box:fullscreen { background: inherit; }
+
+        /* ============ Side drawer ============ */
+        .side {
+            overflow-y: auto; background: var(--surface-1); border-left: 1px solid var(--outline-variant);
+            padding: 10px 12px 32px; scrollbar-width: thin; scrollbar-color: var(--outline-variant) transparent;
+        }
+        .onboard {
+            background: linear-gradient(135deg, var(--primary-container), var(--secondary-container));
+            color: var(--on-primary-container); border-radius: var(--radius-m);
+            padding: 12px 14px; margin-bottom: 12px; box-shadow: var(--elev-1);
+        }
+        .onboard h3 { margin: 0 0 6px; font-size: 13px; }
+        .onboard ol { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
+        .onboard li { font-size: 12.5px; }
+        .onboard .dismiss { margin-top: 8px; background: none; border: none; color: inherit; font-size: 11.5px; cursor: pointer; text-decoration: underline; padding: 0; }
+
+        details.group { border: 1px solid var(--outline-variant); border-radius: var(--radius-m); margin-bottom: 8px; background: var(--surface-2); overflow: hidden; }
+        details.group[open] { background: var(--surface-2); box-shadow: var(--elev-1); }
+        details.group > summary {
+            display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none;
+            font-size: 13px; font-weight: 600; color: var(--on-surface); list-style: none;
+        }
+        details.group > summary::-webkit-details-marker { display: none; }
+        details.group > summary:hover { background: rgba(109, 213, 140, 0.06); }
+        .group-ico {
+            display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+            border-radius: 8px; background: var(--primary-container); color: var(--on-primary-container); flex: none;
+        }
+        summary .chev { margin-left: auto; color: var(--on-surface-variant); transition: transform .2s; }
+        details[open] > summary .chev { transform: rotate(180deg); }
+        .group-body { padding: 4px 14px 14px; border-top: 1px solid var(--outline-variant); }
+        .group-body > p { color: var(--on-surface-variant); font-size: 12.5px; margin: 10px 0; }
+
+        label.row {
+            display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px;
+            margin: 9px 0; color: var(--on-surface); font-size: 12.5px;
+        }
+        label.row input[type="range"] { width: 170px; accent-color: var(--primary); }
+        .hint { color: var(--on-surface-variant); font-size: 11.5px; }
+
+        .card {
+            border: 1px solid var(--outline-variant); border-radius: var(--radius-m);
+            background: var(--surface-3); padding: 10px 12px; margin: 6px 0; cursor: pointer;
+            display: flex; align-items: center; gap: 9px; transition: border-color .15s, transform .1s;
+        }
+        .card:hover { border-color: var(--outline); }
+        .card:active { transform: scale(0.985); }
+        .card.on { border-color: var(--primary); background: rgba(109, 213, 140, 0.10); }
+        .card .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+        .card.on .name { color: var(--primary); font-weight: 600; }
+        .card .tick { color: var(--primary); }
+
+        input[type="file"] { font-size: 12px; color: var(--on-surface-variant); margin: 6px 0; max-width: 100%; }
+        input[type="text"] {
+            background: var(--surface-3); color: var(--on-surface); border: 1px solid var(--outline-variant);
+            border-radius: var(--radius-s); padding: 7px 10px; font: 12.5px var(--font); width: 100%;
+        }
+        input[type="text"]:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+        .bars { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--on-surface-variant); }
+        .bar { height: 6px; background: var(--surface-3); border-radius: 4px; margin: 3px 0 10px; overflow: hidden; }
+        .bar > span { display: block; height: 100%; background: var(--primary); border-radius: 4px; }
+
+        .calib-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 12px; margin-top: 8px; }
+        .calib-table th, .calib-table td { border-bottom: 1px solid var(--outline-variant); padding: 5px 4px; text-align: right; }
+        .calib-table th:first-child, .calib-table td:first-child,
+        .calib-table th:nth-child(2), .calib-table td:nth-child(2) { text-align: left; }
+        .calib-table .bad { color: var(--error); }
+        .calib-table .good { color: var(--good); }
+        #calib-banner { margin: 10px 0; }
+        #calib-bar-wrap { height: 6px; background: var(--surface-3); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+        #calib-bar { display: block; height: 100%; width: 0%; background: var(--primary); border-radius: 4px; transition: width .12s linear; }
+        #pane-calibrate .btn { text-align: left; }
+
+        .trim-arm { border: 1px solid var(--outline-variant); border-radius: var(--radius-m); padding: 8px 12px; margin: 8px 0; }
+        .trim-arm strong { display: block; margin-bottom: 2px; font-size: 12.5px; }
+        .trim-arm .seg { color: var(--on-surface-variant); font-size: 12px; margin-top: 6px; }
+        .trim-arm label { display: grid; grid-template-columns: 68px 1fr; align-items: center; gap: 8px; margin: 3px 0; font-size: 11.5px; color: var(--on-surface-variant); }
+        .trim-arm label input { width: 100%; accent-color: var(--primary); }
+
+        #roundtrip-out { max-height: 220px; overflow: auto; white-space: pre-wrap; background: var(--surface); border: 1px solid var(--outline-variant); border-radius: var(--radius-s); padding: 10px; font-size: 12px; }
+        #roundtrip-shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+        #roundtrip-shots img { width: 100%; border-radius: var(--radius-s); border: 1px solid var(--outline-variant); }
+        #roundtrip-shots p { margin: 3px 0 0; font-size: 10.5px; color: var(--on-surface-variant); }
+
+        /* ============ Background menu popover ============ */
+        .bg-menu { position: relative; }
+        .bg-pop {
+            position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; display: none;
+            background: var(--surface-2); border: 1px solid var(--outline-variant); border-radius: var(--radius-m);
+            box-shadow: var(--elev-3); padding: 12px; width: 236px;
+        }
+        .bg-pop.open { display: block; }
+        .bg-pop h4 { margin: 0 0 8px; font-size: 12px; color: var(--on-surface-variant); text-transform: uppercase; letter-spacing: 0.5px; }
+        .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+        .swatch {
+            width: 100%; aspect-ratio: 1; border-radius: 10px; cursor: pointer; border: 2px solid transparent;
+            display: flex; align-items: center; justify-content: center; transition: transform .1s, border-color .15s;
+        }
+        .swatch:hover { transform: scale(1.08); }
+        .swatch.on { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(109, 213, 140, 0.25); }
+        .swatch span { font-size: 9.5px; color: rgba(0,0,0,0.7); font-weight: 700; text-shadow: 0 0 3px rgba(255,255,255,0.6); }
+        .bg-custom { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--on-surface-variant); }
+        .bg-custom input[type="color"] { width: 42px; height: 30px; border: 1px solid var(--outline-variant); border-radius: 8px; background: none; padding: 2px; cursor: pointer; }
+
+        /* ============ Theater (big avatar) ============ */
+        body.theater { overflow: hidden; }
+        body.theater > header.top-bar { display: none; }
+        body.theater main { grid-template-columns: 1fr; }
+        body.theater #stage-wrap { grid-template-columns: 1fr; }
+        body.theater #stage-wrap .view:first-child { display: none; }
+        body.theater .view + .view { border-left: none; }
+        body.theater .side { display: none; position: fixed; top: 12px; right: 12px; bottom: 12px; width: min(400px, 46vw); z-index: 80;
+            border: 1px solid var(--outline-variant); border-radius: var(--radius-l); box-shadow: var(--elev-3); }
+        body.theater.theater-panels .side { display: block; }
+        body.theater .pane-head { background: transparent; border-bottom-color: transparent; }
+        body.theater #stage { min-height: 100vh; }
+        body.theater #stage-box { min-height: 100vh; }
+
+        #theater-hud { position: fixed; right: 14px; top: 14px; display: none; gap: 8px; z-index: 90; }
+        #theater-hud button {
+            display: inline-flex; align-items: center; gap: 7px;
+            background: rgba(18, 22, 28, 0.88); backdrop-filter: blur(6px); color: var(--on-surface);
+            border: 1px solid var(--outline-variant); border-radius: 999px; padding: 8px 15px;
+            font: 500 12.5px var(--font); cursor: pointer; box-shadow: var(--elev-2);
+        }
+        #theater-hud button:hover { border-color: var(--primary); color: var(--primary); }
+        body.theater #theater-hud { display: flex; }
+
+        /* ============ Arm lab bottom sheet ============ */
+        body.arm-lab header.top-bar, body.arm-lab .view:first-child, body.arm-lab .side { display: none; }
+        body.arm-lab main { grid-template-columns: 1fr; }
+        body.arm-lab #stage-wrap { grid-template-columns: 1fr; }
+        #map-lab {
+            position: relative; z-index: 30; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+            max-height: 34vh; overflow: auto; padding: 10px 14px 12px;
+            background: rgba(16, 19, 24, 0.96); backdrop-filter: blur(8px); border-top: 1px solid var(--outline-variant);
+        }
+        #map-lab[hidden] { display: none; }
+        #map-lab p { flex: 1 1 100%; margin: 0; color: var(--on-surface-variant); font-size: 12.5px; }
+        #map-poses, #map-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+        #map-lab button {
+            background: var(--surface-3); color: var(--on-surface); border: 1px solid var(--outline-variant);
+            border-radius: 999px; padding: 6px 12px; font: 500 12px var(--font); cursor: pointer;
+        }
+        #map-lab button.on { background: var(--primary); color: var(--on-primary); border-color: transparent; }
+        #map-note { flex: 1; min-width: 200px; background: var(--surface-3); color: var(--on-surface); border: 1px solid var(--outline-variant); border-radius: var(--radius-s); padding: 6px 10px; }
+        #map-save-state { color: var(--good); font-size: 12px; }
+
+        /* ============ Embed mode (native host) ============ */
+        body.embed #stage-wrap { grid-template-columns: 1fr; }
+        body.embed #stage-wrap .view:first-child { display: none; }
+        body.embed > header { display: none; }
+
+        @media (max-width: 1160px) {
+            main { grid-template-columns: minmax(0, 1fr) 320px; }
+        }
+        @media (max-width: 960px) {
+            main { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+            #stage-wrap { grid-template-columns: 1fr; grid-template-rows: minmax(200px, 42vh) minmax(240px, 1fr); }
+            .view + .view { border-left: none; border-top: 1px solid var(--outline-variant); }
+            .side { border-left: none; border-top: 1px solid var(--outline-variant); max-height: 46vh; }
+        }
+    </style>
+</head>
+<body>
+    <!-- this [2026-10-11] | INFO | index.topBar | One clean bar: identity, live status, source controls, background, fullscreen -->
+    <header class="top-bar">
+        <button id="drawer-toggle" class="icon-btn" title="Show or hide the controls panel">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+        </button>
+        <div class="brand"><b>Chatter Mocap</b><span>browser rig</span></div>
+        <div id="status">Starting…</div>
+        <div class="top-actions">
+            <div class="field">
+                <span>Source</span>
+                <select id="source">
+                    <option value="browser">Browser camera</option>
+                    <option value="python">Python GPU</option>
+                    <option value="vision">Mac Vision</option>
+                </select>
+            </div>
+            <div class="field">
+                <span>Camera</span>
+                <select id="camera"></select>
+            </div>
+            <label class="switch" title="Flip left/right to match a mirrored camera">
+                <input id="mirror" type="checkbox" /><span>Mirror</span>
+            </label>
+            <button id="theater-btn" class="icon-btn" title="Big avatar mode — avatar fills the page">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 0h2v6h-6v-2h4z"/></svg>
+            </button>
+            <div class="bg-menu">
+                <button id="bg-btn" class="icon-btn" title="Stage background — chroma key for streaming">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+                </button>
+                <div id="bg-pop" class="bg-pop">
+                    <h4>Stage background</h4>
+                    <div class="swatches" id="bg-swatches">
+                        <div class="swatch" data-bg="studio" title="Studio gradient" style="background: radial-gradient(circle at 35% 30%, #35404d, #14181f);"></div>
+                        <div class="swatch" data-bg="#00b140" title="Chroma green" style="background:#00b140;"><span>GREEN</span></div>
+                        <div class="swatch" data-bg="#00ff00" title="Pure green" style="background:#00ff00;"><span>KEY</span></div>
+                        <div class="swatch" data-bg="#0047bb" title="Chroma blue" style="background:#0047bb;"><span>BLUE</span></div>
+                        <div class="swatch" data-bg="#e400f0" title="Chroma magenta" style="background:#e400f0;"><span>MAG</span></div>
+                        <div class="swatch" data-bg="#000000" title="Black" style="background:#000000;"></div>
+                        <div class="swatch" data-bg="#ffffff" title="White" style="background:#ffffff;"></div>
+                        <div class="swatch" data-bg="transparent" title="Transparent — for OBS browser source" style="background-image: linear-gradient(45deg,#333 25%,transparent 25%),linear-gradient(-45deg,#333 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#333 75%),linear-gradient(-45deg,transparent 75%,#333 75%); background-size:12px 12px; background-position:0 0,0 6px,6px -6px,-6px 0; background-color:#555;"></div>
+                    </div>
+                    <div class="bg-custom">
+                        Custom <input type="color" id="bg-custom" value="#00b140" />
+                        <span class="hint">any color</span>
+                    </div>
+                </div>
+            </div>
+            <button id="fullscreen-btn" class="icon-btn" title="Fullscreen the avatar stage">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h7v2H5v5H3zm11 0h7v7h-2V5h-5zM3 14h2v5h5v2H3zm16 0h2v7h-7v-2h5z"/></svg>
+            </button>
+        </div>
+    </header>
+    <main>
+        <div id="stage-wrap">
+            <section class="view">
+                <div class="pane-head"><h2>Camera</h2></div>
+                <div id="preview">
+                    <video id="video" playsinline muted autoplay></video>
+                    <canvas id="overlay"></canvas>
+                    <div id="hold-overlay" hidden><div id="hold-count">3</div><div id="hold-label"></div></div>
+                </div>
+            </section>
+            <section class="view">
+                <div class="pane-head">
+                    <h2>Avatar</h2>
+                    <button id="debug" type="button" class="btn">Debug</button>
+                    <button id="fit-toggle" type="button" class="btn">Fit overlay on</button>
+                    <button id="ghost-toggle" type="button" class="btn">Skeleton on</button>
+                </div>
+                <div id="stage-box" class="bg-studio"><canvas id="stage"></canvas></div>
+            </section>
+        </div>
+        <aside class="side">
+            <!-- this [2026-10-11] | INFO | index.onboarding | Three-step card so first-time users know the flow -->
+            <div class="onboard" id="onboard" hidden>
+                <h3>Getting started</h3>
+                <ol>
+                    <li>Allow the camera and step back so your torso is visible</li>
+                    <li>Pick or upload a VRM model below</li>
+                    <li>Run <b>Calibrate</b> → the three arm poses for accurate tracking</li>
+                </ol>
+                <button class="dismiss" id="onboard-dismiss" type="button">Got it — hide this</button>
+            </div>
+
+            <details class="group" open id="grp-model">
+                <summary>
+                    <span class="group-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12q-1.95 0-3.3-1.35T7.35 7.35t1.35-3.3T12 2.7t3.3 1.35 1.35 3.3-1.35 3.3T12 12zm0 2q-3.15 0-5.4 1.86T4.35 20.7v1.05h15.3V20.7q0-2.98-2.25-4.84T12 14z"/></svg></span>
+                    Model
+                    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                </summary>
+                <div class="group-body">
+                    <p class="hint">Upload a .vrm file, or pick one from your library. The avatar switches instantly.</p>
+                    <input id="vrm-file" type="file" accept=".vrm" />
+                    <div id="vrm-list"></div>
+                </div>
+            </details>
+
+            <details class="group" id="grp-calibrate">
+                <summary>
+                    <span class="group-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-13a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg></span>
+                    Calibrate
+                    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                </summary>
+                <div class="group-body" id="pane-calibrate">
+                    <p>Each capture counts down from 3, then records for 2 seconds. Centimeters are the wrist relative to that shoulder. <b>Off</b> is the error before the arm map; <b>After</b> is the same check with the map applied.</p>
+                    <div id="calib-banner" hidden>
+                        <strong id="calib-count">3</strong>
+                        <span id="calib-phase"></span>
+                        <div id="calib-bar-wrap"><span id="calib-bar" style="width:0%"></span></div>
+                    </div>
+                    <table class="calib-table" id="calib-live"></table>
+                    <button id="pose-down" type="button" class="btn tonal block">1. Arms down</button>
+                    <button id="pose-out" type="button" class="btn tonal block">2. Arms straight out</button>
+                    <button id="pose-forward" type="button" class="btn tonal block">3. Point both arms at the camera</button>
+                    <button id="pose-clear" type="button" class="btn danger block">Clear arm calibration</button>
+                    <button id="show-arm-lab" type="button" class="btn block">Left arm mapping lab</button>
+                    <table class="calib-table" id="calib-table"></table>
+                    <p id="calib-legend" class="hint">Down should be mostly negative Up. Out should be mostly Across (left +, right −). Toward the camera should be mostly Forward.</p>
+                    <p id="calib-state"></p>
+                </div>
+            </details>
+
+            <details class="group" id="grp-body">
+                <summary>
+                    <span class="group-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm9 8h-6v12h-2v-5h-2v5H9V10H3V8h18z"/></svg></span>
+                    Body
+                    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                </summary>
+                <div class="group-body" id="pane-body">
+                    <p class="hint">Smoothing is a time constant — higher holds motion back longer but removes jitter. Saved per model.</p>
+                    <label class="row">Arms <input id="smooth-arms" type="range" min="0" max="0.9" step="0.05" value="0.55" /></label>
+                    <label class="row">Torso <input id="smooth-body" type="range" min="0" max="0.9" step="0.05" value="0.35" /></label>
+                    <label class="row">Legs <input id="smooth-legs" type="range" min="0" max="0.9" step="0.05" value="0.45" /></label>
+                    <label class="switch"><input id="bone-arms" type="checkbox" checked /><span>Arms</span></label>
+                    <label class="switch"><input id="bone-torso" type="checkbox" checked /><span>Torso</span></label>
+                    <label class="switch"><input id="bone-legs" type="checkbox" /><span>Legs</span></label>
+                    <label class="switch"><input id="seated" type="checkbox" /><span>Seated (lock legs)</span></label>
+                    <h4 style="font-size:12.5px; margin:14px 0 4px;">Arm trim (degrees)</h4>
+                    <p class="hint">Nudge each arm if it sits off from the skeleton. Turn on the fit overlay to line them up. Saved per model.</p>
+                    <div class="trim-arm" data-side="left"><strong>Left arm</strong></div>
+                    <div class="trim-arm" data-side="right"><strong>Right arm</strong></div>
+                </div>
+            </details>
+
+            <details class="group" id="grp-hands">
+                <summary>
+                    <span class="group-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 23a4.5 4.5 0 0 1-4.5-4.5V9.5a1.5 1.5 0 0 1 3 0V5a1.5 1.5 0 0 1 3 0v4a1.5 1.5 0 0 1 3 0v6a4.5 4.5 0 0 1-4.5 4.5z"/></svg></span>
+                    Hands
+                    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                </summary>
+                <div class="group-body" id="pane-hands">
+                    <label class="switch"><input id="hands-on" type="checkbox" checked /><span>Fingers</span></label>
+                    <label class="row">Curl <input id="curl" type="range" min="0.2" max="1.8" step="0.05" value="1" /></label>
+                    <label class="row">Splay <input id="splay" type="range" min="0" max="1.5" step="0.05" value="0.65" /></label>
+                    <p id="curl-readout" class="hint">Curl —</p>
+                </div>
+            </details>
+
+            <details class="group" id="grp-face">
+                <summary>
+                    <span class="group-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-3.5-9.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm7 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM12 17c2.5 0 4.5-1.7 5-4H7c.5 2.3 2.5 4 5 4z"/></svg></span>
+                    Face
+                    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                </summary>
+                <div class="group-body" id="pane-face">
+                    <div id="face-bars" class="bars"></div>
+                    <label class="row">Expression <input id="expr-name" placeholder="eyeBlinkLeft" /></label>
+                    <label class="row">Target <input id="expr-target" placeholder="blinkLeft" /></label>
+                    <button id="expr-save" type="button" class="btn tonal block">Save route</button>
+                </div>
+            </details>
+
+            <details class="group" id="grp-advanced">
+                <summary>
+                    <span class="group-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17v2h6v-2zM3 5v2h10V5zm10 16v-2h8v-2h-8v-2h-2v6zM7 9v2H3v2h4v2h2V9zm14 4v-2H11v2zM15 9h2V7h4V5h-4V3h-2z"/></svg></span>
+                    Advanced
+                    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                </summary>
+                <div class="group-body" id="pane-advanced">
+                    <h4 style="font-size:12.5px; margin:10px 0 6px;">Recording</h4>
+                    <button id="rec-start" type="button" class="btn tonal">Record</button>
+                    <button id="rec-stop" type="button" class="btn">Stop</button>
+                    <div id="recordings" style="margin-top:8px;"></div>
+                    <h4 style="font-size:12.5px; margin:14px 0 6px;">Round-trip check</h4>
+                    <p class="hint">Poses the VRM through known arm skeletons using the live retargeter, then reads the posed arm back. Small angles mean faithful mapping. No camera needed.</p>
+                    <button id="roundtrip-run" type="button" class="btn tonal block">Run round-trip check</button>
+                    <pre id="roundtrip-out"></pre>
+                    <div id="roundtrip-shots"></div>
+                </div>
+            </details>
+        </aside>
+    </main>
+    <div id="map-lab" hidden>
+        <p id="map-lab-help">Cyan with yellow joints is the skeleton. Drag to rotate. Scroll to zoom. Save the map that keeps the arm on that line from every angle.</p>
+        <div id="map-poses"></div>
+        <div id="map-choices"></div>
+        <input id="map-note" type="text" placeholder="Describe the match, if the buttons are not enough" />
+        <button id="map-save" type="button" class="btn filled">Save left-arm mapping</button>
+        <span id="map-save-state"></span>
+        <button id="map-lab-close" type="button" class="btn">Close</button>
+    </div>
+    <!-- this [2026-10-06] | INFO | index.theaterHud | Hover controls for big-avatar mode -->
+    <div id="theater-hud">
+        <button id="theater-controls" type="button" title="Show the tuning panels">☰ Tune</button>
+        <button id="theater-exit" type="button" title="Back to the full viewer">⤢ Exit</button>
+    </div>
+    <script>
+        // this [2026-10-11] | INFO | index.shell | DOM-only wiring: drawer, onboarding, background popover, fullscreen, theater button
+        (function () {
+            const body = document.body;
+
+            // Collapsible controls drawer
+            const drawerToggle = document.getElementById('drawer-toggle');
+            const setDrawer = (shown) => {
+                body.classList.toggle('drawer-hidden', !shown);
+                localStorage.setItem('mocap-drawer', shown ? '1' : '0');
+            };
+            if (localStorage.getItem('mocap-drawer') === '0') body.classList.add('drawer-hidden');
+            drawerToggle.addEventListener('click', () => setDrawer(body.classList.contains('drawer-hidden')));
+
+            // Getting-started card
+            const onboard = document.getElementById('onboard');
+            if (onboard && !localStorage.getItem('mocap-onboarded')) onboard.hidden = false;
+            document.getElementById('onboard-dismiss').addEventListener('click', () => {
+                onboard.hidden = true;
+                localStorage.setItem('mocap-onboarded', '1');
+            });
+
+            // Background popover
+            const pop = document.getElementById('bg-pop');
+            const bgBtn = document.getElementById('bg-btn');
+            const swatches = document.getElementById('bg-swatches');
+            const custom = document.getElementById('bg-custom');
+            const markSelected = (kind) => {
+                swatches.querySelectorAll('.swatch').forEach((s) => s.classList.toggle('on', s.dataset.bg === kind));
+            };
+            bgBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                pop.classList.toggle('open');
+            });
+            document.addEventListener('click', (event) => {
+                if (!pop.contains(event.target)) pop.classList.remove('open');
+            });
+            const chooseBackground = (kind) => {
+                localStorage.setItem('mocap-bg', kind);
+                markSelected(kind);
+                window.__chatterApplyBackground?.(kind);
+            };
+            swatches.addEventListener('click', (event) => {
+                const swatch = event.target.closest('.swatch');
+                if (swatch) chooseBackground(swatch.dataset.bg);
+            });
+            custom.addEventListener('input', () => chooseBackground(custom.value));
+            markSelected(localStorage.getItem('mocap-bg') || 'studio');
+
+            // Fullscreen the avatar stage
+            document.getElementById('fullscreen-btn').addEventListener('click', () => {
+                const stageBox = document.getElementById('stage-box');
+                if (document.fullscreenElement) document.exitFullscreen();
+                else stageBox.requestFullscreen?.();
+            });
+
+            // Big avatar toggle in the top bar (page-side; bridge tells the native host if present)
+            const theaterBtn = document.getElementById('theater-btn');
+            theaterBtn.addEventListener('click', () => {
+                const theater = window.__chatterTheater;
+                if (theater) theater.set(!theater.on);
+            });
+        })();
+    </script>
+    <script type="module" src="/static/viewer-client.js?v=m3a"></script>
+</body>
+</html>

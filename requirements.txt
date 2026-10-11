@@ -1,0 +1,9 @@
+# this [2026-10-11] | INFO | requirements | Core hub: python -m mocap --hub-only needs just these three
+aiohttp
+python-socketio[client]
+numpy
+
+# Optional: GPU/ML camera capture sources (skip to use the browser camera instead)
+# opencv-python
+# mediapipe
+# rtmlib

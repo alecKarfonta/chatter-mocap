@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mapping-profile.v1",
+  "title": "VRM mapping profile v1",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "v": { "const": 1 },
+    "vrm": { "type": "string" },
+    "mirror": { "type": "boolean" },
+    "seated": { "type": "boolean" },
+    "scale": { "type": "number" },
+    "smoothing": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "bones": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "weight": { "type": "number" }
+        }
+      }
+    },
+    "fingers": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "curlGain": { "type": "number" },
+        "splayGain": { "type": "number" },
+        "thumbOpposition": { "type": "number" }
+      }
+    },
+    "expressions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "target": { "type": "string" },
+          "gain": { "type": "number" },
+          "clamp": { "type": "number" },
+          "mouth": { "type": "boolean" }
+        }
+      }
+    },
+    "gaze": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "yaw": { "type": "number" },
+        "pitch": { "type": "number" }
+      }
+    }
+  }
+}
