@@ -73,6 +73,38 @@
         .top-actions { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
         .divider { width: 1px; height: 22px; background: var(--outline-variant); margin: 0 4px; }
 
+        /* ============ Menubar (Adobe-style) ============ */
+        .menubar { display: flex; gap: 2px; align-items: center; }
+        .menu { position: relative; }
+        .menu-label {
+            padding: 6px 11px; border-radius: 8px; font: 500 12.5px var(--font);
+            color: var(--on-surface-variant); background: none; border: none; cursor: pointer;
+        }
+        .menu-label:hover, .menu.open .menu-label { background: var(--surface-3); color: var(--on-surface); }
+        .menu-drop {
+            position: absolute; top: calc(100% + 5px); left: 0; z-index: 280; min-width: 238px;
+            background: var(--surface-2); border: 1px solid var(--outline-variant);
+            border-radius: 10px; box-shadow: var(--elev-3); padding: 6px; display: none;
+        }
+        .menu.open .menu-drop { display: block; }
+        .menu-item {
+            display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+            padding: 7px 10px 7px 8px; font: 12.5px var(--font); color: var(--on-surface);
+            background: none; border: none; border-radius: 7px; cursor: pointer;
+        }
+        .menu-item:hover { background: var(--surface-3); }
+        .menu-item kbd {
+            margin-left: auto; font: 10.5px var(--font); color: var(--on-surface-variant);
+            background: var(--surface-3); border: 1px solid var(--outline-variant);
+            border-radius: 5px; padding: 1px 5px;
+        }
+        .menu-item .check { width: 16px; height: 16px; flex: none; display: inline-flex; align-items: center; justify-content: center; color: var(--primary); font-size: 13px; }
+        .menu-item:not(.checked) .check { visibility: hidden; }
+        .menu-sep { height: 1px; background: var(--outline-variant); margin: 5px 8px; }
+        .menu-section { padding: 7px 10px 3px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--on-surface-variant); }
+        .menu-hint { padding: 4px 10px 6px; font-size: 10.5px; color: var(--on-surface-variant); }
+
+
         select {
             appearance: none; background: var(--surface-3); color: var(--on-surface);
             border: 1px solid var(--outline-variant); border-radius: var(--radius-s);
@@ -181,6 +213,10 @@
         /* ============ Panel content ============ */
         .field { display: flex; flex-direction: column; gap: 2px; margin: 8px 0; }
         .field > span { font-size: 10.5px; color: var(--on-surface-variant); letter-spacing: 0.4px; text-transform: uppercase; }
+        .status-controls { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+        .status-controls .field { display: flex; flex-direction: row; align-items: center; gap: 5px; margin: 0; }
+        .status-controls .field > span { font-size: 10.5px; color: var(--on-surface-variant); letter-spacing: 0.3px; }
+        .status-controls select { width: auto; }
         .hint { color: var(--on-surface-variant); font-size: 11.5px; }
         .panel-body p { margin: 8px 0; font-size: 12.5px; }
         .panel-body h4 { font-size: 12.5px; margin: 14px 0 4px; }
@@ -250,26 +286,6 @@
         #roundtrip-shots img { width: 100%; border-radius: var(--radius-s); border: 1px solid var(--outline-variant); }
         #roundtrip-shots p { margin: 3px 0 0; font-size: 10.5px; color: var(--on-surface-variant); }
 
-        /* ============ Background menu popover ============ */
-        .bg-menu { position: relative; }
-        .bg-pop {
-            position: absolute; right: 0; top: calc(100% + 6px); z-index: 260; display: none;
-            background: var(--surface-2); border: 1px solid var(--outline-variant); border-radius: var(--radius-m);
-            box-shadow: var(--elev-3); padding: 12px; width: 236px;
-        }
-        .bg-pop.open { display: block; }
-        .bg-pop h4 { margin: 0 0 8px; font-size: 12px; color: var(--on-surface-variant); text-transform: uppercase; letter-spacing: 0.5px; }
-        .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
-        .swatch {
-            width: 100%; aspect-ratio: 1; border-radius: 10px; cursor: pointer; border: 2px solid transparent;
-            display: flex; align-items: center; justify-content: center; transition: transform .1s, border-color .15s;
-        }
-        .swatch:hover { transform: scale(1.08); }
-        .swatch.on { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(109, 213, 140, 0.25); }
-        .swatch span { font-size: 9.5px; color: rgba(0,0,0,0.7); font-weight: 700; text-shadow: 0 0 3px rgba(255,255,255,0.6); }
-        .bg-custom { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--on-surface-variant); }
-        .bg-custom input[type="color"] { width: 42px; height: 30px; border: 1px solid var(--outline-variant); border-radius: 8px; background: none; padding: 2px; cursor: pointer; }
-
         /* ============ Onboarding ============ */
         .onboard {
             position: fixed; left: 14px; bottom: 14px; z-index: 130;
@@ -331,49 +347,74 @@
     </style>
 </head>
 <body>
-    <!-- this [2026-10-11] | INFO | index.topBar | Panel launcher bar: status, panel toggles, chroma, theater, fullscreen -->
+    <!-- this [2026-10-11] | INFO | index.menubar | Adobe-style menubar: File / View / Window / Help + status-line controls -->
     <header class="top-bar">
-        <div class="brand"><b>Chatter Mocap</b><span>browser rig</span></div>
-        <div id="status">Starting…</div>
-        <div class="top-actions">
-            <button class="icon-btn launcher on" data-launch="panel-model" title="Model library">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12q-1.95 0-3.3-1.35T7.35 7.35t1.35-3.3T12 2.7t3.3 1.35 1.35 3.3-1.35 3.3T12 12zm0 2q-3.15 0-5.4 1.86T4.35 20.7v1.05h15.3V20.7q0-2.98-2.25-4.84T12 14z"/></svg>
-            </button>
-            <button class="icon-btn launcher on" data-launch="panel-camera" title="Camera preview and source">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
-            </button>
-            <button class="icon-btn launcher" data-launch="panel-calibrate" title="Guided arm calibration">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-13a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>
-            </button>
-            <button class="icon-btn launcher" data-launch="panel-tune" title="Body, hands, and face tuning">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17v2h6v-2H3zm0-8v2h10v-2H3zm0-6v2h13V3H3zm12 16v-2h-2v-2h2v-2h2v2h2v2h-2v2h-2zm4-8v-2h-2V7h2V5h2v2h2v2h-2v2h-2zm-6 0V9h-8v2h8z"/></svg>
-            </button>
-            <button class="icon-btn launcher" data-launch="panel-advanced" title="Recording and diagnostics">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
-            </button>
-            <span class="divider"></span>
-            <div class="bg-menu">
-                <button id="bg-btn" class="icon-btn" title="Stage background — chroma key for streaming">
-                    <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
-                </button>
-                <div id="bg-pop" class="bg-pop">
-                    <h4>Stage background</h4>
-                    <div class="swatches" id="bg-swatches">
-                        <div class="swatch" data-bg="studio" title="Studio gradient" style="background: radial-gradient(circle at 35% 30%, #35404d, #14181f);"></div>
-                        <div class="swatch" data-bg="#00b140" title="Chroma green" style="background:#00b140;"><span>GREEN</span></div>
-                        <div class="swatch" data-bg="#00ff00" title="Pure green" style="background:#00ff00;"><span>KEY</span></div>
-                        <div class="swatch" data-bg="#0047bb" title="Chroma blue" style="background:#0047bb;"><span>BLUE</span></div>
-                        <div class="swatch" data-bg="#e400f0" title="Chroma magenta" style="background:#e400f0;"><span>MAG</span></div>
-                        <div class="swatch" data-bg="#000000" title="Black" style="background:#000000;"></div>
-                        <div class="swatch" data-bg="#ffffff" title="White" style="background:#ffffff;"></div>
-                        <div class="swatch" data-bg="transparent" title="Transparent — for OBS browser source" style="background-image: linear-gradient(45deg,#333 25%,transparent 25%),linear-gradient(-45deg,#333 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#333 75%),linear-gradient(-45deg,transparent 75%,#333 75%); background-size:12px 12px; background-position:0 0,0 6px,6px -6px,-6px 0; background-color:#555;"></div>
-                    </div>
-                    <div class="bg-custom">
-                        Custom <input type="color" id="bg-custom" value="#00b140" />
-                        <span class="hint">any color</span>
-                    </div>
+        <div class="brand"><b>Chatter Mocap</b></div>
+        <nav class="menubar">
+            <div class="menu" id="menu-file">
+                <button class="menu-label" type="button">File</button>
+                <div class="menu-drop">
+                    <button class="menu-item" id="mi-open-vrm" type="button"><span class="check"></span>Open VRM…</button>
+                    <div class="menu-sep"></div>
+                    <div class="menu-section">Session</div>
+                    <button class="menu-item" id="mi-record" type="button"><span class="check"></span>Start Recording</button>
+                    <button class="menu-item" id="mi-stop" type="button"><span class="check"></span>Stop Recording</button>
                 </div>
             </div>
+            <div class="menu" id="menu-view">
+                <button class="menu-label" type="button">View</button>
+                <div class="menu-drop">
+                    <div class="menu-section">Stage</div>
+                    <button class="menu-item" id="mi-focus" type="button"><span class="check"></span>Focus Mode</button>
+                    <button class="menu-item" id="mi-fullscreen" type="button"><span class="check"></span>Fullscreen</button>
+                    <div class="menu-sep"></div>
+                    <div class="menu-section">Background</div>
+                    <button class="menu-item mi-bg" data-bg="studio" type="button"><span class="check"></span>Studio</button>
+                    <button class="menu-item mi-bg" data-bg="#00b140" type="button"><span class="check"></span>Chroma Green</button>
+                    <button class="menu-item mi-bg" data-bg="#00ff00" type="button"><span class="check"></span>Pure Green</button>
+                    <button class="menu-item mi-bg" data-bg="#0047bb" type="button"><span class="check"></span>Chroma Blue</button>
+                    <button class="menu-item mi-bg" data-bg="#e400f0" type="button"><span class="check"></span>Chroma Magenta</button>
+                    <button class="menu-item mi-bg" data-bg="#000000" type="button"><span class="check"></span>Black</button>
+                    <button class="menu-item mi-bg" data-bg="#ffffff" type="button"><span class="check"></span>White</button>
+                    <button class="menu-item mi-bg" data-bg="transparent" type="button"><span class="check"></span>Transparent (OBS)</button>
+                    <div class="menu-sep"></div>
+                    <div class="menu-section">Overlays</div>
+                    <button class="menu-item" id="mi-skeleton" type="button"><span class="check"></span>Skeleton</button>
+                    <button class="menu-item" id="mi-fit" type="button"><span class="check"></span>Fit Lines</button>
+                    <button class="menu-item" id="mi-debug" type="button"><span class="check"></span>Debug Info</button>
+                </div>
+            </div>
+            <div class="menu" id="menu-window">
+                <button class="menu-label" type="button">Window</button>
+                <div class="menu-drop">
+                    <div class="menu-section">Panels</div>
+                    <button class="menu-item mi-panel" data-panel="panel-model" type="button"><span class="check"></span>Model</button>
+                    <button class="menu-item mi-panel" data-panel="panel-camera" type="button"><span class="check"></span>Camera</button>
+                    <button class="menu-item mi-panel" data-panel="panel-calibrate" type="button"><span class="check"></span>Calibrate</button>
+                    <button class="menu-item mi-panel" data-panel="panel-tune" type="button"><span class="check"></span>Tune</button>
+                    <button class="menu-item mi-panel" data-panel="panel-advanced" type="button"><span class="check"></span>Advanced</button>
+                    <div class="menu-sep"></div>
+                    <button class="menu-item" id="mi-all-panels" type="button"><span class="check"></span>Show All Panels</button>
+                    <button class="menu-item" id="mi-hide-panels" type="button"><span class="check"></span>Hide All Panels</button>
+                    <button class="menu-item" id="mi-reset-panels" type="button"><span class="check"></span>Reset Layout</button>
+                </div>
+            </div>
+            <div class="menu" id="menu-help">
+                <button class="menu-label" type="button">Help</button>
+                <div class="menu-drop">
+                    <button class="menu-item" id="mi-guide" type="button"><span class="check"></span>Getting Started</button>
+                    <button class="menu-item" id="mi-tips" type="button"><span class="check"></span>Tips &amp; Tricks</button>
+                    <div class="menu-sep"></div>
+                    <button class="menu-item" id="mi-about" type="button"><span class="check"></span>About Chatter Mocap</button>
+                </div>
+            </div>
+        </nav>
+        <div id="status">Starting…</div>
+        <div class="status-controls">
+            <div class="field"><span>Source</span><select id="source"><option value="browser">Browser camera</option><option value="python">Python GPU</option><option value="vision">Mac Vision</option></select></div>
+            <div class="field"><span>Camera</span><select id="camera"></select></div>
+            <label class="switch" title="Mirror"><input id="mirror" type="checkbox" /><span>Mirror</span></label>
+            <span class="divider"></span>
             <button id="theater-btn" class="icon-btn" title="Focus mode — hide everything but the avatar">
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9zm0-2.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
             </button>
@@ -387,7 +428,7 @@
     <div id="stage-box" class="bg-studio"><canvas id="stage"></canvas></div>
 
     <!-- ============ Model panel ============ -->
-    <section class="float-panel" id="panel-model" data-x="14" data-y="64" style="width: 300px;">
+    <section class="float-panel" id="panel-model" data-x="14" data-y="64" style="width: 300px;" hidden>
         <div class="panel-head">
             <h2>Model</h2>
             <button type="button" data-panel-collapse title="Collapse">–</button>
@@ -401,28 +442,14 @@
     </section>
 
     <!-- ============ Camera panel ============ -->
-    <section class="float-panel" id="panel-camera" data-x="right" data-y="64" style="width: 340px;">
+    <section class="float-panel" id="panel-camera" data-x="right" data-y="64" style="width: 340px;" hidden>
         <div class="panel-head">
             <h2>Camera</h2>
             <button type="button" data-panel-collapse title="Collapse">–</button>
             <button type="button" data-panel-close title="Close">×</button>
         </div>
         <div class="panel-body">
-            <div class="field">
-                <span>Source</span>
-                <select id="source">
-                    <option value="browser">Browser camera</option>
-                    <option value="python">Python GPU</option>
-                    <option value="vision">Mac Vision</option>
-                </select>
-            </div>
-            <div class="field">
-                <span>Camera</span>
-                <select id="camera"></select>
-            </div>
-            <label class="switch" title="Flip left/right to match a mirrored camera">
-                <input id="mirror" type="checkbox" /><span>Mirror</span>
-            </label>
+            <p class="hint">Live camera with tracking skeleton. Switch source and camera in the toolbar.</p>
             <div id="preview">
                 <video id="video" playsinline muted autoplay></video>
                 <canvas id="overlay"></canvas>
@@ -687,11 +714,17 @@
             }
 
             function wireLauncher(launcher) {
+                // this [2026-10-11] | INFO | index.wireLauncher | Menubar items and legacy launchers both toggle panels
                 launcher.addEventListener('click', () => {
-                    const panel = document.getElementById(launcher.dataset.launch);
+                    const target = launcher.dataset.launch || launcher.dataset.panel;
+                    const panel = document.getElementById(target);
                     if (!panel) return;
                     panel.hidden = !panel.hidden;
-                    if (!panel.hidden) clampToViewport(panel);
+                    if (!panel.hidden) {
+                        clampToViewport(panel);
+                        panel.classList.add('active');
+                        document.querySelectorAll('.float-panel').forEach((p) => p.classList.toggle('active', p === panel));
+                    }
                     persist(panel);
                     syncLauncher(panel);
                 });
@@ -719,6 +752,110 @@
                 panel.appendChild(grip);
             });
             document.querySelectorAll('.launcher').forEach(wireLauncher);
+            document.querySelectorAll('.mi-panel').forEach(wireLauncher);
+
+            // this [2026-10-11] | INFO | index.menubar | Adobe-style menus: click to open, click-away/hover-swap to close
+            const menus = document.querySelectorAll('.menu');
+            let openMenu = null;
+            const closeMenus = () => { menus.forEach((m) => m.classList.remove('open')); openMenu = null; };
+            menus.forEach((menu) => {
+                menu.querySelector('.menu-label').addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const was = menu.classList.contains('open');
+                    closeMenus();
+                    if (!was) { menu.classList.add('open'); openMenu = menu; }
+                });
+                menu.querySelector('.menu-drop').addEventListener('click', (event) => {
+                    if (!event.target.closest('.mi-bg, #mi-guide, #mi-tips, #mi-about')) closeMenus();
+                });
+                // hover-swap between menus once one is open (desktop feel)
+                menu.addEventListener('mouseenter', () => { if (openMenu && openMenu !== menu) { closeMenus(); menu.classList.add('open'); openMenu = menu; } });
+            });
+            document.addEventListener('click', (event) => { if (openMenu && !event.target.closest('.menu')) closeMenus(); });
+
+            // View → Background mirrors the swatch popover state
+            const syncMenuChecks = () => {
+                const kind = localStorage.getItem('mocap-bg') || 'studio';
+                document.querySelectorAll('.mi-bg').forEach((item) => {
+                    item.classList.toggle('checked', item.dataset.bg === kind);
+                });
+            };
+            document.querySelectorAll('.mi-bg').forEach((item) => item.addEventListener('click', () => {
+                localStorage.setItem('mocap-bg', item.dataset.bg);
+                document.getElementById('bg-swatches')?.querySelectorAll('.swatch').forEach((s) => s.classList.toggle('on', s.dataset.bg === item.dataset.bg));
+                window.__chatterApplyBackground?.(item.dataset.bg);
+                syncMenuChecks();
+            }));
+            syncMenuChecks();
+
+            // File menu actions
+            document.getElementById('mi-open-vrm')?.addEventListener('click', () => {
+                const model = document.getElementById('panel-model');
+                model.hidden = false;
+                clampToViewport(model);
+                persist(model);
+                model.querySelector('#vrm-file')?.click();
+            });
+            document.getElementById('mi-record')?.addEventListener('click', () => document.getElementById('rec-start')?.click());
+            document.getElementById('mi-stop')?.addEventListener('click', () => document.getElementById('rec-stop')?.click());
+
+            // View → Stage
+            document.getElementById('mi-focus')?.addEventListener('click', () => window.__chatterTheater?.set(!window.__chatterTheater.on));
+            document.getElementById('mi-fullscreen')?.addEventListener('click', () => document.getElementById('fullscreen-btn')?.click());
+            // View → Overlays proxy to the Tune → View tab buttons
+            const proxyToggle = (menuId, buttonId) => {
+                const item = document.getElementById(menuId);
+                const button = document.getElementById(buttonId);
+                if (!item || !button) return;
+                item.addEventListener('click', () => { button.click(); syncOverlayChecks(); });
+            };
+            const syncOverlayChecks = () => {
+                const ghost = document.getElementById('ghost-toggle');
+                const fit = document.getElementById('fit-toggle');
+                const debugBtn = document.getElementById('debug');
+                document.getElementById('mi-skeleton')?.classList.toggle('checked', ghost?.textContent.includes('on'));
+                document.getElementById('mi-fit')?.classList.toggle('checked', fit?.textContent.includes('on'));
+                document.getElementById('mi-debug')?.classList.toggle('checked', Boolean(window.__chatterDebug));
+            };
+            proxyToggle('mi-skeleton', 'ghost-toggle');
+            proxyToggle('mi-fit', 'fit-toggle');
+            proxyToggle('mi-debug', 'debug');
+            setInterval(syncOverlayChecks, 800);
+
+            // Window menu layout actions
+            const allPanels = () => document.querySelectorAll('.float-panel');
+            document.getElementById('mi-all-panels')?.addEventListener('click', () => {
+                allPanels().forEach((panel) => { panel.hidden = false; clampToViewport(panel); persist(panel); syncLauncher(panel); });
+            });
+            document.getElementById('mi-hide-panels')?.addEventListener('click', () => {
+                allPanels().forEach((panel) => { panel.hidden = true; persist(panel); syncLauncher(panel); });
+            });
+            document.getElementById('mi-reset-panels')?.addEventListener('click', () => {
+                localStorage.removeItem('mocap-panels');
+                state = loadState();
+                allPanels().forEach((panel) => {
+                    panel.style.left = ''; panel.style.top = ''; panel.style.right = ''; panel.style.width = ''; panel.style.height = '';
+                    panel.classList.remove('collapsed'); panel.hidden = true;
+                    delete panel.dataset.resized;
+                });
+                const model = document.getElementById('panel-model');
+                model.hidden = false;
+                positionPanel(model);
+                syncLauncher(model);
+            });
+
+            // Help menu
+            document.getElementById('mi-guide')?.addEventListener('click', () => {
+                const onboard = document.getElementById('onboard');
+                onboard.hidden = !onboard.hidden;
+                localStorage.setItem('mocap-onboarded', onboard.hidden ? '1' : '0');
+            });
+            document.getElementById('mi-tips')?.addEventListener('click', () => {
+                alert('Tips\\n\\n• Stand 2–3 m from the camera with even front lighting\\n• Drag panel headers to arrange your workspace; layout is saved automatically\\n• Focus Mode hides everything — hover the top-right to get panels back\\n• Chroma backgrounds key cleanly in OBS; Transparent works as a browser source\\n• Arm calibration (three poses) dramatically improves tracking accuracy');
+            });
+            document.getElementById('mi-about')?.addEventListener('click', () => {
+                alert('Chatter Mocap\\n\\nBrowser-based webcam motion capture for VRM avatars.\\nhttps://github.com/alecKarfonta/chatter-mocap');
+            });
 
             // Getting-started card
             const onboard = document.getElementById('onboard');
@@ -728,32 +865,7 @@
                 localStorage.setItem('mocap-onboarded', '1');
             });
 
-            // Background popover
-            const pop = document.getElementById('bg-pop');
-            const bgBtn = document.getElementById('bg-btn');
-            const swatches = document.getElementById('bg-swatches');
-            const custom = document.getElementById('bg-custom');
-            const markSelected = (kind) => {
-                swatches.querySelectorAll('.swatch').forEach((s) => s.classList.toggle('on', s.dataset.bg === kind));
-            };
-            bgBtn.addEventListener('click', (event) => {
-                event.stopPropagation();
-                pop.classList.toggle('open');
-            });
-            document.addEventListener('click', (event) => {
-                if (!pop.contains(event.target)) pop.classList.remove('open');
-            });
-            const chooseBackground = (kind) => {
-                localStorage.setItem('mocap-bg', kind);
-                markSelected(kind);
-                window.__chatterApplyBackground?.(kind);
-            };
-            swatches.addEventListener('click', (event) => {
-                const swatch = event.target.closest('.swatch');
-                if (swatch) chooseBackground(swatch.dataset.bg);
-            });
-            custom.addEventListener('input', () => chooseBackground(custom.value));
-            markSelected(localStorage.getItem('mocap-bg') || 'studio');
+            // Background: handled by View menu items (bg popover removed in menubar redesign)
 
             // Fullscreen the avatar stage
             document.getElementById('fullscreen-btn').addEventListener('click', () => {
@@ -770,6 +882,6 @@
             });
         })();
     </script>
-    <script type="module" src="/static/viewer-client.js?v=panels1"></script>
+    <script type="module" src="/static/viewer-client.js?v=menu1"></script>
 </body>
 </html>
