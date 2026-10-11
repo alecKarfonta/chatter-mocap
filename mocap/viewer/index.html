@@ -4,18 +4,18 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Chatter Mocap</title>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="/vendor/socket.io.min.js"></script>
     <script type="importmap">
     {
         "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.4.4/lib/three-vrm.module.min.js"
+            "three": "/vendor/three/build/three.module.js",
+            "three/addons/": "/vendor/three/examples/jsm/",
+            "@pixiv/three-vrm": "/vendor/three-vrm/three-vrm.module.min.js"
         }
     }
     </script>
     <style>
-        /* this [2026-10-11] | INFO | index.material | Material 3 dark scheme, green primary; tokens drive every component */
+        /* this [2026-10-11] | INFO | index.material | Material 3 dark scheme, green primary */
         :root {
             color-scheme: dark;
             --primary: #6dd58c;
@@ -36,7 +36,6 @@
             --error: #ffb4ab;
             --warn: #ffcc80;
             --good: #6dd58c;
-            --chroma-green: #00b140;
             --radius-s: 10px;
             --radius-m: 14px;
             --radius-l: 20px;
@@ -44,39 +43,40 @@
             --elev-2: 0 4px 14px rgba(0, 0, 0, 0.45);
             --elev-3: 0 10px 30px rgba(0, 0, 0, 0.55);
             --font: -apple-system, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+            --bar-h: 52px;
         }
         * { box-sizing: border-box; }
         html, body { margin: 0; height: 100%; background: var(--surface); color: var(--on-surface); font: 14px/1.45 var(--font); }
-        body { display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
+        body { overflow: hidden; }
 
         /* ============ Top app bar ============ */
         header.top-bar {
-            display: flex; align-items: center; gap: 10px; padding: 8px 14px;
-            background: var(--surface-1); border-bottom: 1px solid var(--outline-variant);
+            position: fixed; top: 0; left: 0; right: 0; z-index: 200; height: var(--bar-h);
+            display: flex; align-items: center; gap: 10px; padding: 6px 14px;
+            background: rgba(21, 25, 31, 0.92); backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--outline-variant);
         }
-        .brand { display: flex; align-items: baseline; gap: 8px; margin-right: 4px; }
-        .brand b { font-size: 15.5px; font-weight: 600; letter-spacing: 0.2px; }
-        .brand span { font-size: 11.5px; color: var(--on-surface-variant); }
+        .brand { display: flex; align-items: baseline; gap: 8px; margin-right: 2px; }
+        .brand b { font-size: 15px; font-weight: 600; letter-spacing: 0.2px; }
+        .brand span { font-size: 11px; color: var(--on-surface-variant); }
         #status {
-            flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
-            color: var(--on-surface-variant); font-size: 12.5px;
+            flex: 1; min-width: 60px; display: flex; align-items: center; gap: 8px;
+            color: var(--on-surface-variant); font-size: 12px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         #status::before {
-            content: ""; width: 8px; height: 8px; border-radius: 50%;
-            background: var(--good); box-shadow: 0 0 8px var(--good); flex: none;
+            content: ""; width: 8px; height: 8px; border-radius: 50%; flex: none;
+            background: var(--good); box-shadow: 0 0 8px var(--good);
             animation: pulse 2.4s ease-in-out infinite;
         }
         @keyframes pulse { 50% { opacity: 0.45; } }
-        .top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .top-actions { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+        .divider { width: 1px; height: 22px; background: var(--outline-variant); margin: 0 4px; }
 
-        /* this [2026-10-11] | INFO | index.controls | Filled selects + switch live in the bar; labels sit above for clarity */
-        .field { display: flex; flex-direction: column; gap: 2px; }
-        .field > span { font-size: 10.5px; color: var(--on-surface-variant); letter-spacing: 0.4px; text-transform: uppercase; padding-left: 10px; }
         select {
             appearance: none; background: var(--surface-3); color: var(--on-surface);
             border: 1px solid var(--outline-variant); border-radius: var(--radius-s);
-            padding: 6px 26px 6px 10px; font: 12.5px var(--font); cursor: pointer;
+            padding: 6px 26px 6px 10px; font: 12.5px var(--font); cursor: pointer; width: 100%;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23b9c2cc' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
             background-repeat: no-repeat; background-position: right 9px center;
         }
@@ -120,37 +120,8 @@
         .icon-btn.on { background: var(--primary-container); color: var(--on-primary-container); }
         .icon-btn:active { transform: scale(0.92); }
 
-        /* ============ Main split ============ */
-        main { display: grid; grid-template-columns: minmax(0, 1fr) 372px; min-height: 0; }
-        body.drawer-hidden main { grid-template-columns: minmax(0, 1fr) 0; }
-        body.drawer-hidden .side { display: none; }
-
-        #stage-wrap { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; min-width: 0; }
-        .view { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-        .view + .view { border-left: 1px solid var(--outline-variant); }
-        .pane-head {
-            display: flex; align-items: center; gap: 8px; padding: 7px 12px;
-            background: var(--surface-1); border-bottom: 1px solid var(--outline-variant);
-        }
-        .pane-head h2 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.7px; text-transform: uppercase; color: var(--on-surface-variant); flex: 1; }
-        .pane-head .btn { padding: 4px 10px; font-size: 11.5px; border-radius: 999px; }
-
-        #preview { position: relative; flex: 1; min-height: 160px; background: #0a0d12; }
-        #preview video, #preview canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-        #preview video { z-index: 0; }
-        #preview canvas { z-index: 1; }
-
-        #hold-overlay {
-            position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; gap: 4px;
-            background: rgba(8, 10, 14, 0.55); backdrop-filter: blur(2px); text-align: center;
-        }
-        #hold-overlay[hidden] { display: none; }
-        #hold-count { font-size: 84px; font-weight: 700; line-height: 0.9; color: #fff; text-shadow: 0 4px 30px rgba(109, 213, 140, 0.5); }
-        #hold-label { font-size: 16px; max-width: 320px; color: var(--on-surface); }
-
-        /* this [2026-10-11] | INFO | index.stage | Backgrounds: gradient studio, checker transparency, or solid chroma via three.js */
-        #stage-box { position: relative; flex: 1; min-height: 160px; display: flex; }
+        /* ============ Stage fills the window ============ */
+        #stage-box { position: fixed; inset: var(--bar-h) 0 0 0; }
         #stage-box.bg-studio { background: radial-gradient(ellipse 90% 75% at 50% 30%, #232b36 0%, #14181f 62%, #0c0f14 100%); }
         #stage-box.bg-transparent {
             background-image:
@@ -161,47 +132,64 @@
             background-size: 22px 22px; background-position: 0 0, 0 11px, 11px -11px, -11px 0;
             background-color: #171b21;
         }
-        #stage { flex: 1; width: 100%; min-height: 0; display: block; }
+        #stage { width: 100%; height: 100%; display: block; }
         #stage-box:fullscreen { background: inherit; }
 
-        /* ============ Side drawer ============ */
-        .side {
-            overflow-y: auto; background: var(--surface-1); border-left: 1px solid var(--outline-variant);
-            padding: 10px 12px 32px; scrollbar-width: thin; scrollbar-color: var(--outline-variant) transparent;
+        /* ============ Floating panels ============ */
+        .float-panel {
+            position: fixed; z-index: 120; display: flex; flex-direction: column;
+            width: 320px; max-width: calc(100vw - 20px); max-height: calc(100vh - var(--bar-h) - 16px);
+            background: rgba(26, 31, 38, 0.97);
+            border: 1px solid var(--outline-variant); border-radius: var(--radius-m);
+            box-shadow: var(--elev-3); overflow: hidden;
         }
-        .onboard {
-            background: linear-gradient(135deg, var(--primary-container), var(--secondary-container));
-            color: var(--on-primary-container); border-radius: var(--radius-m);
-            padding: 12px 14px; margin-bottom: 12px; box-shadow: var(--elev-1);
-        }
-        .onboard h3 { margin: 0 0 6px; font-size: 13px; }
-        .onboard ol { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
-        .onboard li { font-size: 12.5px; }
-        .onboard .dismiss { margin-top: 8px; background: none; border: none; color: inherit; font-size: 11.5px; cursor: pointer; text-decoration: underline; padding: 0; }
+        .float-panel[hidden] { display: none; }
+        .float-panel.active { border-color: var(--primary); }
+        .float-panel.dragging { opacity: 0.92; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6); }
+        .float-panel.collapsed { height: auto !important; max-height: none; }
+        .float-panel.collapsed .panel-body, .float-panel.collapsed .panel-resize { display: none; }
 
-        details.group { border: 1px solid var(--outline-variant); border-radius: var(--radius-m); margin-bottom: 8px; background: var(--surface-2); overflow: hidden; }
-        details.group[open] { background: var(--surface-2); box-shadow: var(--elev-1); }
-        details.group > summary {
-            display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none;
-            font-size: 13px; font-weight: 600; color: var(--on-surface); list-style: none;
+        .panel-head {
+            display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+            cursor: grab; user-select: none; touch-action: none;
+            background: var(--surface-2); border-bottom: 1px solid var(--outline-variant);
         }
-        details.group > summary::-webkit-details-marker { display: none; }
-        details.group > summary:hover { background: rgba(109, 213, 140, 0.06); }
-        .group-ico {
-            display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
-            border-radius: 8px; background: var(--primary-container); color: var(--on-primary-container); flex: none;
+        .float-panel.dragging .panel-head { cursor: grabbing; }
+        .panel-head h2 { margin: 0; flex: 1; font-size: 12px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: var(--on-surface-variant); }
+        .panel-head button {
+            font: 500 15px/1 var(--font); width: 24px; height: 24px; flex: none;
+            border: none; border-radius: 6px; cursor: pointer;
+            background: transparent; color: var(--on-surface-variant);
         }
-        summary .chev { margin-left: auto; color: var(--on-surface-variant); transition: transform .2s; }
-        details[open] > summary .chev { transform: rotate(180deg); }
-        .group-body { padding: 4px 14px 14px; border-top: 1px solid var(--outline-variant); }
-        .group-body > p { color: var(--on-surface-variant); font-size: 12.5px; margin: 10px 0; }
+        .panel-head button:hover { background: var(--surface-3); color: var(--on-surface); }
+        .panel-body { flex: 1; overflow: auto; padding: 10px 12px 12px; scrollbar-width: thin; scrollbar-color: var(--outline-variant) transparent; }
+        .panel-resize {
+            position: absolute; right: 2px; bottom: 2px; width: 14px; height: 14px; cursor: nwse-resize; touch-action: none;
+            background: linear-gradient(135deg, transparent 50%, #888 50%, #888 58%, transparent 58%, transparent 70%, #888 70%);
+        }
+
+        .panel-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+        .panel-tabs button {
+            font: 500 11.5px var(--font); padding: 4px 11px; cursor: pointer;
+            background: var(--surface-3); color: var(--on-surface-variant);
+            border: 1px solid var(--outline-variant); border-radius: 999px;
+        }
+        .panel-tabs button:hover { border-color: var(--outline); color: var(--on-surface); }
+        .panel-tabs button.active { background: var(--primary); color: var(--on-primary); border-color: transparent; }
+        .tab-page[hidden] { display: none !important; }
+
+        /* ============ Panel content ============ */
+        .field { display: flex; flex-direction: column; gap: 2px; margin: 8px 0; }
+        .field > span { font-size: 10.5px; color: var(--on-surface-variant); letter-spacing: 0.4px; text-transform: uppercase; }
+        .hint { color: var(--on-surface-variant); font-size: 11.5px; }
+        .panel-body p { margin: 8px 0; font-size: 12.5px; }
+        .panel-body h4 { font-size: 12.5px; margin: 14px 0 4px; }
 
         label.row {
             display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px;
             margin: 9px 0; color: var(--on-surface); font-size: 12.5px;
         }
-        label.row input[type="range"] { width: 170px; accent-color: var(--primary); }
-        .hint { color: var(--on-surface-variant); font-size: 11.5px; }
+        label.row input[type="range"] { width: 150px; accent-color: var(--primary); }
 
         .card {
             border: 1px solid var(--outline-variant); border-radius: var(--radius-m);
@@ -221,6 +209,20 @@
             border-radius: var(--radius-s); padding: 7px 10px; font: 12.5px var(--font); width: 100%;
         }
         input[type="text"]:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+        /* Camera preview inside its panel */
+        #preview { position: relative; height: 200px; margin-top: 10px; background: #0a0d12; border-radius: var(--radius-s); overflow: hidden; }
+        #preview video, #preview canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+        #preview video { z-index: 0; }
+        #preview canvas { z-index: 1; }
+        #hold-overlay {
+            position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 4px;
+            background: rgba(8, 10, 14, 0.55); backdrop-filter: blur(2px); text-align: center;
+        }
+        #hold-overlay[hidden] { display: none; }
+        #hold-count { font-size: 72px; font-weight: 700; line-height: 0.9; color: #fff; text-shadow: 0 4px 30px rgba(109, 213, 140, 0.5); }
+        #hold-label { font-size: 15px; max-width: 300px; color: var(--on-surface); }
 
         .bars { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--on-surface-variant); }
         .bar { height: 6px; background: var(--surface-3); border-radius: 4px; margin: 3px 0 10px; overflow: hidden; }
@@ -251,7 +253,7 @@
         /* ============ Background menu popover ============ */
         .bg-menu { position: relative; }
         .bg-pop {
-            position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; display: none;
+            position: absolute; right: 0; top: calc(100% + 6px); z-index: 260; display: none;
             background: var(--surface-2); border: 1px solid var(--outline-variant); border-radius: var(--radius-m);
             box-shadow: var(--elev-3); padding: 12px; width: 236px;
         }
@@ -268,21 +270,26 @@
         .bg-custom { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--on-surface-variant); }
         .bg-custom input[type="color"] { width: 42px; height: 30px; border: 1px solid var(--outline-variant); border-radius: 8px; background: none; padding: 2px; cursor: pointer; }
 
-        /* ============ Theater (big avatar) ============ */
-        body.theater { overflow: hidden; }
-        body.theater > header.top-bar { display: none; }
-        body.theater main { grid-template-columns: 1fr; }
-        body.theater #stage-wrap { grid-template-columns: 1fr; }
-        body.theater #stage-wrap .view:first-child { display: none; }
-        body.theater .view + .view { border-left: none; }
-        body.theater .side { display: none; position: fixed; top: 12px; right: 12px; bottom: 12px; width: min(400px, 46vw); z-index: 80;
-            border: 1px solid var(--outline-variant); border-radius: var(--radius-l); box-shadow: var(--elev-3); }
-        body.theater.theater-panels .side { display: block; }
-        body.theater .pane-head { background: transparent; border-bottom-color: transparent; }
-        body.theater #stage { min-height: 100vh; }
-        body.theater #stage-box { min-height: 100vh; }
+        /* ============ Onboarding ============ */
+        .onboard {
+            position: fixed; left: 14px; bottom: 14px; z-index: 130;
+            width: 300px; max-width: calc(100vw - 28px);
+            background: linear-gradient(135deg, var(--primary-container), var(--secondary-container));
+            color: var(--on-primary-container); border-radius: var(--radius-m);
+            padding: 12px 14px; box-shadow: var(--elev-3); border: 1px solid rgba(109, 213, 140, 0.35);
+        }
+        .onboard[hidden] { display: none; }
+        .onboard h3 { margin: 0 0 6px; font-size: 13px; }
+        .onboard ol { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
+        .onboard li { font-size: 12.5px; }
+        .onboard .dismiss { margin-top: 8px; background: none; border: none; color: inherit; font-size: 11.5px; cursor: pointer; text-decoration: underline; padding: 0; }
 
-        #theater-hud { position: fixed; right: 14px; top: 14px; display: none; gap: 8px; z-index: 90; }
+        /* ============ Theater / focus ============ */
+        body.theater header.top-bar { display: none; }
+        body.theater #stage-box { top: 0; }
+        body.theater .float-panel, body.theater .onboard { display: none; }
+        body.theater.theater-panels .float-panel { display: flex; }
+        #theater-hud { position: fixed; right: 14px; top: 14px; display: none; gap: 8px; z-index: 300; }
         #theater-hud button {
             display: inline-flex; align-items: center; gap: 7px;
             background: rgba(18, 22, 28, 0.88); backdrop-filter: blur(6px); color: var(--on-surface);
@@ -293,11 +300,11 @@
         body.theater #theater-hud { display: flex; }
 
         /* ============ Arm lab bottom sheet ============ */
-        body.arm-lab header.top-bar, body.arm-lab .view:first-child, body.arm-lab .side { display: none; }
-        body.arm-lab main { grid-template-columns: 1fr; }
-        body.arm-lab #stage-wrap { grid-template-columns: 1fr; }
+        body.arm-lab header.top-bar, body.arm-lab .float-panel, body.arm-lab .onboard { display: none; }
+        body.arm-lab #stage-box { top: 0; }
         #map-lab {
-            position: relative; z-index: 30; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+            position: fixed; left: 0; right: 0; bottom: 0; z-index: 140;
+            display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
             max-height: 34vh; overflow: auto; padding: 10px 14px 12px;
             background: rgba(16, 19, 24, 0.96); backdrop-filter: blur(8px); border-top: 1px solid var(--outline-variant);
         }
@@ -313,51 +320,41 @@
         #map-save-state { color: var(--good); font-size: 12px; }
 
         /* ============ Embed mode (native host) ============ */
-        body.embed #stage-wrap { grid-template-columns: 1fr; }
-        body.embed #stage-wrap .view:first-child { display: none; }
-        body.embed > header { display: none; }
+        body.embed header.top-bar { display: none; }
+        body.embed #panel-camera { display: none; }
+        body.embed #stage-box { top: 0; }
 
-        @media (max-width: 1160px) {
-            main { grid-template-columns: minmax(0, 1fr) 320px; }
-        }
-        @media (max-width: 960px) {
-            main { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
-            #stage-wrap { grid-template-columns: 1fr; grid-template-rows: minmax(200px, 42vh) minmax(240px, 1fr); }
-            .view + .view { border-left: none; border-top: 1px solid var(--outline-variant); }
-            .side { border-left: none; border-top: 1px solid var(--outline-variant); max-height: 46vh; }
+        @media (max-width: 760px) {
+            .float-panel { width: min(320px, calc(100vw - 20px)); }
+            #panel-camera { width: calc(100vw - 20px); }
         }
     </style>
 </head>
 <body>
-    <!-- this [2026-10-11] | INFO | index.topBar | One clean bar: identity, live status, source controls, background, fullscreen -->
+    <!-- this [2026-10-11] | INFO | index.topBar | Panel launcher bar: status, panel toggles, chroma, theater, fullscreen -->
     <header class="top-bar">
-        <button id="drawer-toggle" class="icon-btn" title="Show or hide the controls panel">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
-        </button>
         <div class="brand"><b>Chatter Mocap</b><span>browser rig</span></div>
         <div id="status">Starting…</div>
         <div class="top-actions">
-            <div class="field">
-                <span>Source</span>
-                <select id="source">
-                    <option value="browser">Browser camera</option>
-                    <option value="python">Python GPU</option>
-                    <option value="vision">Mac Vision</option>
-                </select>
-            </div>
-            <div class="field">
-                <span>Camera</span>
-                <select id="camera"></select>
-            </div>
-            <label class="switch" title="Flip left/right to match a mirrored camera">
-                <input id="mirror" type="checkbox" /><span>Mirror</span>
-            </label>
-            <button id="theater-btn" class="icon-btn" title="Big avatar mode — avatar fills the page">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 0h2v6h-6v-2h4z"/></svg>
+            <button class="icon-btn launcher on" data-launch="panel-model" title="Model library">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12q-1.95 0-3.3-1.35T7.35 7.35t1.35-3.3T12 2.7t3.3 1.35 1.35 3.3-1.35 3.3T12 12zm0 2q-3.15 0-5.4 1.86T4.35 20.7v1.05h15.3V20.7q0-2.98-2.25-4.84T12 14z"/></svg>
             </button>
+            <button class="icon-btn launcher on" data-launch="panel-camera" title="Camera preview and source">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+            </button>
+            <button class="icon-btn launcher" data-launch="panel-calibrate" title="Guided arm calibration">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-13a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>
+            </button>
+            <button class="icon-btn launcher" data-launch="panel-tune" title="Body, hands, and face tuning">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17v2h6v-2H3zm0-8v2h10v-2H3zm0-6v2h13V3H3zm12 16v-2h-2v-2h2v-2h2v2h2v2h-2v2h-2zm4-8v-2h-2V7h2V5h2v2h2v2h-2v2h-2zm-6 0V9h-8v2h8z"/></svg>
+            </button>
+            <button class="icon-btn launcher" data-launch="panel-advanced" title="Recording and diagnostics">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
+            </button>
+            <span class="divider"></span>
             <div class="bg-menu">
                 <button id="bg-btn" class="icon-btn" title="Stage background — chroma key for streaming">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
                 </button>
                 <div id="bg-pop" class="bg-pop">
                     <h4>Stage background</h4>
@@ -377,151 +374,177 @@
                     </div>
                 </div>
             </div>
+            <button id="theater-btn" class="icon-btn" title="Focus mode — hide everything but the avatar">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9zm0-2.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
+            </button>
             <button id="fullscreen-btn" class="icon-btn" title="Fullscreen the avatar stage">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h7v2H5v5H3zm11 0h7v7h-2V5h-5zM3 14h2v5h5v2H3zm16 0h2v7h-7v-2h5z"/></svg>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h7v2H5v5H3zm11 0h7v7h-2V5h-5zM3 14h2v5h5v2H3zm16 0h2v7h-7v-2h5z"/></svg>
             </button>
         </div>
     </header>
-    <main>
-        <div id="stage-wrap">
-            <section class="view">
-                <div class="pane-head"><h2>Camera</h2></div>
-                <div id="preview">
-                    <video id="video" playsinline muted autoplay></video>
-                    <canvas id="overlay"></canvas>
-                    <div id="hold-overlay" hidden><div id="hold-count">3</div><div id="hold-label"></div></div>
-                </div>
-            </section>
-            <section class="view">
-                <div class="pane-head">
-                    <h2>Avatar</h2>
-                    <button id="debug" type="button" class="btn">Debug</button>
-                    <button id="fit-toggle" type="button" class="btn">Fit overlay on</button>
-                    <button id="ghost-toggle" type="button" class="btn">Skeleton on</button>
-                </div>
-                <div id="stage-box" class="bg-studio"><canvas id="stage"></canvas></div>
-            </section>
+
+    <!-- this [2026-10-11] | INFO | index.stage | The rig fills the window; panels float above it -->
+    <div id="stage-box" class="bg-studio"><canvas id="stage"></canvas></div>
+
+    <!-- ============ Model panel ============ -->
+    <section class="float-panel" id="panel-model" data-x="14" data-y="64" style="width: 300px;">
+        <div class="panel-head">
+            <h2>Model</h2>
+            <button type="button" data-panel-collapse title="Collapse">–</button>
+            <button type="button" data-panel-close title="Close">×</button>
         </div>
-        <aside class="side">
-            <!-- this [2026-10-11] | INFO | index.onboarding | Three-step card so first-time users know the flow -->
-            <div class="onboard" id="onboard" hidden>
-                <h3>Getting started</h3>
-                <ol>
-                    <li>Allow the camera and step back so your torso is visible</li>
-                    <li>Pick or upload a VRM model below</li>
-                    <li>Run <b>Calibrate</b> → the three arm poses for accurate tracking</li>
-                </ol>
-                <button class="dismiss" id="onboard-dismiss" type="button">Got it — hide this</button>
+        <div class="panel-body">
+            <p class="hint">Upload a .vrm file, or pick one from your library. The avatar switches instantly.</p>
+            <input id="vrm-file" type="file" accept=".vrm" />
+            <div id="vrm-list"></div>
+        </div>
+    </section>
+
+    <!-- ============ Camera panel ============ -->
+    <section class="float-panel" id="panel-camera" data-x="right" data-y="64" style="width: 340px;">
+        <div class="panel-head">
+            <h2>Camera</h2>
+            <button type="button" data-panel-collapse title="Collapse">–</button>
+            <button type="button" data-panel-close title="Close">×</button>
+        </div>
+        <div class="panel-body">
+            <div class="field">
+                <span>Source</span>
+                <select id="source">
+                    <option value="browser">Browser camera</option>
+                    <option value="python">Python GPU</option>
+                    <option value="vision">Mac Vision</option>
+                </select>
             </div>
+            <div class="field">
+                <span>Camera</span>
+                <select id="camera"></select>
+            </div>
+            <label class="switch" title="Flip left/right to match a mirrored camera">
+                <input id="mirror" type="checkbox" /><span>Mirror</span>
+            </label>
+            <div id="preview">
+                <video id="video" playsinline muted autoplay></video>
+                <canvas id="overlay"></canvas>
+                <div id="hold-overlay" hidden><div id="hold-count">3</div><div id="hold-label"></div></div>
+            </div>
+        </div>
+    </section>
 
-            <details class="group" open id="grp-model">
-                <summary>
-                    <span class="group-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12q-1.95 0-3.3-1.35T7.35 7.35t1.35-3.3T12 2.7t3.3 1.35 1.35 3.3-1.35 3.3T12 12zm0 2q-3.15 0-5.4 1.86T4.35 20.7v1.05h15.3V20.7q0-2.98-2.25-4.84T12 14z"/></svg></span>
-                    Model
-                    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
-                </summary>
-                <div class="group-body">
-                    <p class="hint">Upload a .vrm file, or pick one from your library. The avatar switches instantly.</p>
-                    <input id="vrm-file" type="file" accept=".vrm" />
-                    <div id="vrm-list"></div>
-                </div>
-            </details>
+    <!-- ============ Calibrate panel ============ -->
+    <section class="float-panel" id="panel-calibrate" data-x="14" data-y="380" style="width: 330px;" hidden>
+        <div class="panel-head">
+            <h2>Calibrate</h2>
+            <button type="button" data-panel-collapse title="Collapse">–</button>
+            <button type="button" data-panel-close title="Close">×</button>
+        </div>
+        <div class="panel-body" id="pane-calibrate">
+            <p>Each capture counts down from 3, then records for 2 seconds. Centimeters are the wrist relative to that shoulder. <b>Off</b> is the error before the arm map; <b>After</b> is the same check with the map applied.</p>
+            <div id="calib-banner" hidden>
+                <strong id="calib-count">3</strong>
+                <span id="calib-phase"></span>
+                <div id="calib-bar-wrap"><span id="calib-bar" style="width:0%"></span></div>
+            </div>
+            <table class="calib-table" id="calib-live"></table>
+            <button id="pose-down" type="button" class="btn tonal block">1. Arms down</button>
+            <button id="pose-out" type="button" class="btn tonal block">2. Arms straight out</button>
+            <button id="pose-forward" type="button" class="btn tonal block">3. Point both arms at the camera</button>
+            <button id="pose-clear" type="button" class="btn danger block">Clear arm calibration</button>
+            <button id="show-arm-lab" type="button" class="btn block">Left arm mapping lab</button>
+            <table class="calib-table" id="calib-table"></table>
+            <p id="calib-legend" class="hint">Down should be mostly negative Up. Out should be mostly Across (left +, right −). Toward the camera should be mostly Forward.</p>
+            <p id="calib-state"></p>
+        </div>
+    </section>
 
-            <details class="group" id="grp-calibrate">
-                <summary>
-                    <span class="group-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-13a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg></span>
-                    Calibrate
-                    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
-                </summary>
-                <div class="group-body" id="pane-calibrate">
-                    <p>Each capture counts down from 3, then records for 2 seconds. Centimeters are the wrist relative to that shoulder. <b>Off</b> is the error before the arm map; <b>After</b> is the same check with the map applied.</p>
-                    <div id="calib-banner" hidden>
-                        <strong id="calib-count">3</strong>
-                        <span id="calib-phase"></span>
-                        <div id="calib-bar-wrap"><span id="calib-bar" style="width:0%"></span></div>
-                    </div>
-                    <table class="calib-table" id="calib-live"></table>
-                    <button id="pose-down" type="button" class="btn tonal block">1. Arms down</button>
-                    <button id="pose-out" type="button" class="btn tonal block">2. Arms straight out</button>
-                    <button id="pose-forward" type="button" class="btn tonal block">3. Point both arms at the camera</button>
-                    <button id="pose-clear" type="button" class="btn danger block">Clear arm calibration</button>
-                    <button id="show-arm-lab" type="button" class="btn block">Left arm mapping lab</button>
-                    <table class="calib-table" id="calib-table"></table>
-                    <p id="calib-legend" class="hint">Down should be mostly negative Up. Out should be mostly Across (left +, right −). Toward the camera should be mostly Forward.</p>
-                    <p id="calib-state"></p>
-                </div>
-            </details>
+    <!-- ============ Tune panel (tabs: View / Body / Hands / Face) ============ -->
+    <section class="float-panel" id="panel-tune" data-x="right" data-y="440" style="width: 320px;" hidden>
+        <div class="panel-head">
+            <h2>Tune</h2>
+            <button type="button" data-panel-collapse title="Collapse">–</button>
+            <button type="button" data-panel-close title="Close">×</button>
+        </div>
+        <div class="panel-body">
+            <div class="panel-tabs" data-tabs="tune">
+                <button type="button" data-tab="view" class="active">View</button>
+                <button type="button" data-tab="body">Body</button>
+                <button type="button" data-tab="hands">Hands</button>
+                <button type="button" data-tab="face">Face</button>
+            </div>
+            <div class="tab-page" data-tab-page="view">
+                <p class="hint">Overlays on the avatar stage.</p>
+                <button id="debug" type="button" class="btn">Debug</button>
+                <button id="fit-toggle" type="button" class="btn">Fit overlay on</button>
+                <button id="ghost-toggle" type="button" class="btn">Skeleton on</button>
+            </div>
+            <div class="tab-page" data-tab-page="body" id="pane-body" hidden>
+                <p class="hint">Smoothing is a time constant — higher holds motion back longer but removes jitter. Saved per model.</p>
+                <label class="row">Arms <input id="smooth-arms" type="range" min="0" max="0.9" step="0.05" value="0.55" /></label>
+                <label class="row">Torso <input id="smooth-body" type="range" min="0" max="0.9" step="0.05" value="0.35" /></label>
+                <label class="row">Legs <input id="smooth-legs" type="range" min="0" max="0.9" step="0.05" value="0.45" /></label>
+                <label class="switch"><input id="bone-arms" type="checkbox" checked /><span>Arms</span></label>
+                <label class="switch"><input id="bone-torso" type="checkbox" checked /><span>Torso</span></label>
+                <label class="switch"><input id="bone-legs" type="checkbox" /><span>Legs</span></label>
+                <label class="switch"><input id="seated" type="checkbox" /><span>Seated (lock legs)</span></label>
+                <h4>Arm trim (degrees)</h4>
+                <p class="hint">Nudge each arm if it sits off from the skeleton. Turn on the fit overlay to line them up. Saved per model.</p>
+                <div class="trim-arm" data-side="left"><strong>Left arm</strong></div>
+                <div class="trim-arm" data-side="right"><strong>Right arm</strong></div>
+            </div>
+            <div class="tab-page" data-tab-page="hands" id="pane-hands" hidden>
+                <label class="switch"><input id="hands-on" type="checkbox" checked /><span>Fingers</span></label>
+                <label class="row">Curl <input id="curl" type="range" min="0.2" max="1.8" step="0.05" value="1" /></label>
+                <label class="row">Splay <input id="splay" type="range" min="0" max="1.5" step="0.05" value="0.65" /></label>
+                <p id="curl-readout" class="hint">Curl —</p>
+            </div>
+            <div class="tab-page" data-tab-page="face" id="pane-face" hidden>
+                <div id="face-bars" class="bars"></div>
+                <label class="row">Expression <input id="expr-name" placeholder="eyeBlinkLeft" /></label>
+                <label class="row">Target <input id="expr-target" placeholder="blinkLeft" /></label>
+                <button id="expr-save" type="button" class="btn tonal block">Save route</button>
+            </div>
+        </div>
+    </section>
 
-            <details class="group" id="grp-body">
-                <summary>
-                    <span class="group-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm9 8h-6v12h-2v-5h-2v5H9V10H3V8h18z"/></svg></span>
-                    Body
-                    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
-                </summary>
-                <div class="group-body" id="pane-body">
-                    <p class="hint">Smoothing is a time constant — higher holds motion back longer but removes jitter. Saved per model.</p>
-                    <label class="row">Arms <input id="smooth-arms" type="range" min="0" max="0.9" step="0.05" value="0.55" /></label>
-                    <label class="row">Torso <input id="smooth-body" type="range" min="0" max="0.9" step="0.05" value="0.35" /></label>
-                    <label class="row">Legs <input id="smooth-legs" type="range" min="0" max="0.9" step="0.05" value="0.45" /></label>
-                    <label class="switch"><input id="bone-arms" type="checkbox" checked /><span>Arms</span></label>
-                    <label class="switch"><input id="bone-torso" type="checkbox" checked /><span>Torso</span></label>
-                    <label class="switch"><input id="bone-legs" type="checkbox" /><span>Legs</span></label>
-                    <label class="switch"><input id="seated" type="checkbox" /><span>Seated (lock legs)</span></label>
-                    <h4 style="font-size:12.5px; margin:14px 0 4px;">Arm trim (degrees)</h4>
-                    <p class="hint">Nudge each arm if it sits off from the skeleton. Turn on the fit overlay to line them up. Saved per model.</p>
-                    <div class="trim-arm" data-side="left"><strong>Left arm</strong></div>
-                    <div class="trim-arm" data-side="right"><strong>Right arm</strong></div>
-                </div>
-            </details>
+    <!-- ============ Advanced panel (tabs: Record / Check) ============ -->
+    <section class="float-panel" id="panel-advanced" data-x="14" data-y="420" style="width: 340px;" hidden>
+        <div class="panel-head">
+            <h2>Advanced</h2>
+            <button type="button" data-panel-collapse title="Collapse">–</button>
+            <button type="button" data-panel-close title="Close">×</button>
+        </div>
+        <div class="panel-body">
+            <div class="panel-tabs" data-tabs="advanced">
+                <button type="button" data-tab="record" class="active">Record</button>
+                <button type="button" data-tab="check">Check</button>
+            </div>
+            <div class="tab-page" data-tab-page="record">
+                <button id="rec-start" type="button" class="btn tonal">Record</button>
+                <button id="rec-stop" type="button" class="btn">Stop</button>
+                <div id="recordings" style="margin-top:8px;"></div>
+            </div>
+            <div class="tab-page" data-tab-page="check" hidden>
+                <p class="hint">Poses the VRM through known arm skeletons using the live retargeter, then reads the posed arm back. Small angles mean faithful mapping. No camera needed.</p>
+                <button id="roundtrip-run" type="button" class="btn tonal block">Run round-trip check</button>
+                <pre id="roundtrip-out"></pre>
+                <div id="roundtrip-shots"></div>
+            </div>
+        </div>
+    </section>
 
-            <details class="group" id="grp-hands">
-                <summary>
-                    <span class="group-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 23a4.5 4.5 0 0 1-4.5-4.5V9.5a1.5 1.5 0 0 1 3 0V5a1.5 1.5 0 0 1 3 0v4a1.5 1.5 0 0 1 3 0v6a4.5 4.5 0 0 1-4.5 4.5z"/></svg></span>
-                    Hands
-                    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
-                </summary>
-                <div class="group-body" id="pane-hands">
-                    <label class="switch"><input id="hands-on" type="checkbox" checked /><span>Fingers</span></label>
-                    <label class="row">Curl <input id="curl" type="range" min="0.2" max="1.8" step="0.05" value="1" /></label>
-                    <label class="row">Splay <input id="splay" type="range" min="0" max="1.5" step="0.05" value="0.65" /></label>
-                    <p id="curl-readout" class="hint">Curl —</p>
-                </div>
-            </details>
+    <!-- this [2026-10-11] | INFO | index.onboard | Small first-run card; dismiss forever via localStorage -->
+    <div class="onboard" id="onboard" hidden>
+        <h3>Getting started</h3>
+        <ol>
+            <li>Allow the camera and step back so your torso is visible</li>
+            <li>Pick or upload a VRM model from the Model panel</li>
+            <li>Open <b>Calibrate</b> → the three arm poses for accurate tracking</li>
+            <li>Drag panels by their headers; close or collapse anything you don't need</li>
+        </ol>
+        <button class="dismiss" id="onboard-dismiss" type="button">Got it — hide this</button>
+    </div>
 
-            <details class="group" id="grp-face">
-                <summary>
-                    <span class="group-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-3.5-9.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm7 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM12 17c2.5 0 4.5-1.7 5-4H7c.5 2.3 2.5 4 5 4z"/></svg></span>
-                    Face
-                    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
-                </summary>
-                <div class="group-body" id="pane-face">
-                    <div id="face-bars" class="bars"></div>
-                    <label class="row">Expression <input id="expr-name" placeholder="eyeBlinkLeft" /></label>
-                    <label class="row">Target <input id="expr-target" placeholder="blinkLeft" /></label>
-                    <button id="expr-save" type="button" class="btn tonal block">Save route</button>
-                </div>
-            </details>
-
-            <details class="group" id="grp-advanced">
-                <summary>
-                    <span class="group-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17v2h6v-2zM3 5v2h10V5zm10 16v-2h8v-2h-8v-2h-2v6zM7 9v2H3v2h4v2h2V9zm14 4v-2H11v2zM15 9h2V7h4V5h-4V3h-2z"/></svg></span>
-                    Advanced
-                    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
-                </summary>
-                <div class="group-body" id="pane-advanced">
-                    <h4 style="font-size:12.5px; margin:10px 0 6px;">Recording</h4>
-                    <button id="rec-start" type="button" class="btn tonal">Record</button>
-                    <button id="rec-stop" type="button" class="btn">Stop</button>
-                    <div id="recordings" style="margin-top:8px;"></div>
-                    <h4 style="font-size:12.5px; margin:14px 0 6px;">Round-trip check</h4>
-                    <p class="hint">Poses the VRM through known arm skeletons using the live retargeter, then reads the posed arm back. Small angles mean faithful mapping. No camera needed.</p>
-                    <button id="roundtrip-run" type="button" class="btn tonal block">Run round-trip check</button>
-                    <pre id="roundtrip-out"></pre>
-                    <div id="roundtrip-shots"></div>
-                </div>
-            </details>
-        </aside>
-    </main>
+    <!-- this [2026-10-06] | INFO | index.armLab | Bottom sheet for the left-arm mapping lab -->
     <div id="map-lab" hidden>
         <p id="map-lab-help">Cyan with yellow joints is the skeleton. Drag to rotate. Scroll to zoom. Save the map that keeps the arm on that line from every angle.</p>
         <div id="map-poses"></div>
@@ -531,24 +554,171 @@
         <span id="map-save-state"></span>
         <button id="map-lab-close" type="button" class="btn">Close</button>
     </div>
-    <!-- this [2026-10-06] | INFO | index.theaterHud | Hover controls for big-avatar mode -->
+
+    <!-- this [2026-10-11] | INFO | index.theaterHud | Hover controls for focus mode -->
     <div id="theater-hud">
-        <button id="theater-controls" type="button" title="Show the tuning panels">☰ Tune</button>
+        <button id="theater-controls" type="button" title="Show the tuning panels">☰ Panels</button>
         <button id="theater-exit" type="button" title="Back to the full viewer">⤢ Exit</button>
     </div>
+
     <script>
-        // this [2026-10-11] | INFO | index.shell | DOM-only wiring: drawer, onboarding, background popover, fullscreen, theater button
+        // this [2026-10-11] | INFO | index.shell | Panel manager: drag, collapse, close, resize, tabs, launchers, persist
         (function () {
             const body = document.body;
+            const STORE_KEY = 'mocap-panels';
 
-            // Collapsible controls drawer
-            const drawerToggle = document.getElementById('drawer-toggle');
-            const setDrawer = (shown) => {
-                body.classList.toggle('drawer-hidden', !shown);
-                localStorage.setItem('mocap-drawer', shown ? '1' : '0');
+            function loadState() {
+                try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch { return {}; }
+            }
+            function saveState(state) { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+            let state = loadState();
+
+            const clampToViewport = (panel) => {
+                const rect = panel.getBoundingClientRect();
+                // this [2026-10-11] | FIX | index.clamp | Right-anchored panels keep their right anchor; only left-anchored ones clamp X
+                if (panel.style.left !== 'auto') {
+                    const maxX = window.innerWidth - Math.min(rect.width, window.innerWidth - 8) - 8;
+                    panel.style.left = `${Math.max(8, Math.min(parseFloat(panel.style.left) || 14, maxX))}px`;
+                }
+                const maxY = window.innerHeight - 44;
+                panel.style.top = `${Math.max(56, Math.min(parseFloat(panel.style.top) || 64, maxY))}px`;
             };
-            if (localStorage.getItem('mocap-drawer') === '0') body.classList.add('drawer-hidden');
-            drawerToggle.addEventListener('click', () => setDrawer(body.classList.contains('drawer-hidden')));
+
+            function positionPanel(panel) {
+                const saved = state[panel.id] || {};
+                const x = saved.x ?? panel.dataset.x;
+                const y = saved.y ?? panel.dataset.y;
+                if (x === 'right') {
+                    panel.style.right = '14px';
+                    panel.style.left = 'auto';
+                } else {
+                    panel.style.left = `${x}px`;
+                    panel.style.right = 'auto';
+                }
+                panel.style.top = `${y}px`;
+                if (!saved.x && x !== 'right') clampToViewport(panel);
+                if (saved.w) panel.style.width = `${saved.w}px`;
+                if (saved.h) panel.style.height = `${saved.h}px`;
+                if (saved.collapsed) panel.classList.add('collapsed');
+                // this [2026-10-11] | FIX | index.panelState | Only restore closed state once the user has actually toggled the panel; otherwise keep the HTML default
+                if (state[panel.id] && 'closed' in state[panel.id]) panel.hidden = Boolean(saved.closed);
+                syncLauncher(panel);
+            }
+
+            function persist(panel) {
+                const rect = panel.getBoundingClientRect();
+                state[panel.id] = {
+                    ...(state[panel.id] || {}),
+                    x: panel.style.left === 'auto' ? 'right' : Math.round(rect.left),
+                    y: Math.round(rect.top),
+                    w: Math.round(rect.width),
+                    h: panel.dataset.resized ? Math.round(rect.height) : undefined,
+                    collapsed: panel.classList.contains('collapsed'),
+                    closed: panel.hidden,
+                };
+                saveState(state);
+            }
+
+            function syncLauncher(panel) {
+                const launcher = document.querySelector(`[data-launch="${panel.id}"]`);
+                if (launcher) launcher.classList.toggle('on', !panel.hidden);
+            }
+
+            function makeDraggable(panel) {
+                const head = panel.querySelector('.panel-head');
+                head.addEventListener('pointerdown', (event) => {
+                    if (event.target.closest('button')) return;
+                    panel.classList.add('active', 'dragging');
+                    document.querySelectorAll('.float-panel').forEach((p) => p.classList.toggle('active', p === panel));
+                    const rect = panel.getBoundingClientRect();
+                    const offsetX = event.clientX - rect.left;
+                    const offsetY = event.clientY - rect.top;
+                    const move = (event) => {
+                        panel.style.left = `${event.clientX - offsetX}px`;
+                        panel.style.top = `${event.clientY - offsetY}px`;
+                        panel.style.right = 'auto';
+                        clampToViewport(panel);
+                    };
+                    const up = () => {
+                        panel.classList.remove('dragging');
+                        window.removeEventListener('pointermove', move);
+                        window.removeEventListener('pointerup', up);
+                        persist(panel);
+                    };
+                    window.addEventListener('pointermove', move);
+                    window.addEventListener('pointerup', up);
+                });
+            }
+
+            function makeResizable(panel) {
+                const grip = panel.querySelector('.panel-resize');
+                if (!grip) return;
+                grip.addEventListener('pointerdown', (event) => {
+                    event.preventDefault();
+                    const startW = panel.getBoundingClientRect().width;
+                    const startH = panel.getBoundingClientRect().height;
+                    const startX = event.clientX;
+                    const startY = event.clientY;
+                    const move = (event) => {
+                        panel.style.width = `${Math.max(260, startW + event.clientX - startX)}px`;
+                        panel.style.height = `${Math.max(160, startH + event.clientY - startY)}px`;
+                        panel.dataset.resized = '1';
+                    };
+                    const up = () => {
+                        window.removeEventListener('pointermove', move);
+                        window.removeEventListener('pointerup', up);
+                        persist(panel);
+                    };
+                    window.addEventListener('pointermove', move);
+                    window.addEventListener('pointerup', up);
+                });
+            }
+
+            function wirePanelControls(panel) {
+                panel.querySelector('[data-panel-collapse]')?.addEventListener('click', () => {
+                    panel.classList.toggle('collapsed');
+                    persist(panel);
+                });
+                panel.querySelector('[data-panel-close]')?.addEventListener('click', () => {
+                    panel.hidden = true;
+                    persist(panel);
+                    syncLauncher(panel);
+                });
+            }
+
+            function wireLauncher(launcher) {
+                launcher.addEventListener('click', () => {
+                    const panel = document.getElementById(launcher.dataset.launch);
+                    if (!panel) return;
+                    panel.hidden = !panel.hidden;
+                    if (!panel.hidden) clampToViewport(panel);
+                    persist(panel);
+                    syncLauncher(panel);
+                });
+            }
+
+            // Tabs inside panels
+            document.querySelectorAll('.panel-tabs').forEach((tabs) => {
+                tabs.addEventListener('click', (event) => {
+                    const button = event.target.closest('button[data-tab]');
+                    if (!button) return;
+                    tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b === button));
+                    const pages = tabs.parentElement.querySelectorAll('.tab-page');
+                    pages.forEach((page) => { page.hidden = page.dataset.tabPage !== button.dataset.tab; });
+                });
+            });
+
+            const panels = document.querySelectorAll('.float-panel');
+            panels.forEach((panel) => {
+                positionPanel(panel);
+                makeDraggable(panel);
+                makeResizable(panel);
+                wirePanelControls(panel);
+                const grip = document.createElement('div');
+                grip.className = 'panel-resize';
+                panel.appendChild(grip);
+            });
+            document.querySelectorAll('.launcher').forEach(wireLauncher);
 
             // Getting-started card
             const onboard = document.getElementById('onboard');
@@ -592,7 +762,7 @@
                 else stageBox.requestFullscreen?.();
             });
 
-            // Big avatar toggle in the top bar (page-side; bridge tells the native host if present)
+            // Focus mode button (same as theater)
             const theaterBtn = document.getElementById('theater-btn');
             theaterBtn.addEventListener('click', () => {
                 const theater = window.__chatterTheater;
@@ -600,6 +770,6 @@
             });
         })();
     </script>
-    <script type="module" src="/static/viewer-client.js?v=m3a"></script>
+    <script type="module" src="/static/viewer-client.js?v=panels1"></script>
 </body>
 </html>
